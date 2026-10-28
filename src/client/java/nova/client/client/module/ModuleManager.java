@@ -11,6 +11,7 @@ import java.util.List;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 
 import nova.client.client.macro.MacroEngine;
 
@@ -19,6 +20,10 @@ public final class ModuleManager {
     private final List<Module> modules = new ArrayList<>();
 
     private int afkTicks = 0;
+
+    // =========================================
+    // INITIALIZE ALL MODULES
+    // =========================================
 
     public void initialize() {
 
@@ -69,7 +74,10 @@ public final class ModuleManager {
 
             @Override
             public void onDisable() {
-                Minecraft.getInstance().options.keyUp.setDown(false);
+
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyUp.setDown(false);
             }
         });
 
@@ -83,14 +91,19 @@ public final class ModuleManager {
 
                 Minecraft mc = Minecraft.getInstance();
 
-                if (mc.player != null && mc.screen == null) {
-                    mc.options.keyShift.setDown(true);
+                if (mc.player == null || mc.screen != null) {
+                    return;
                 }
+
+                mc.options.keyShift.setDown(true);
             }
 
             @Override
             public void onDisable() {
-                Minecraft.getInstance().options.keyShift.setDown(false);
+
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyShift.setDown(false);
             }
         });
 
@@ -110,7 +123,7 @@ public final class ModuleManager {
 
                 if (mc.player.onGround()
                     && mc.player.input != null
-                    && mc.player.input.getMoveVector().lengthSqr() > 0) {
+                    && mc.player.input.getMoveVector().lengthSquared() > 0) {
 
                     mc.player.jumpFromGround();
                 }
@@ -239,7 +252,9 @@ public final class ModuleManager {
 
                 Minecraft mc = Minecraft.getInstance();
 
-                if (mc.player != null && mc.player.isDeadOrDying()) {
+                if (mc.player != null
+                    && mc.player.isDeadOrDying()) {
+
                     mc.player.respawn();
                 }
             }
@@ -256,13 +271,16 @@ public final class ModuleManager {
         ) {
             @Override
             public void onDisable() {
-                MacroEngine.stop(Minecraft.getInstance());
+
+                MacroEngine.stop(
+                    Minecraft.getInstance()
+                );
             }
         });
 
         register(new Module(
             "Anti AFK",
-            "Prevent inactivity by periodically swinging",
+            "Periodically swing to prevent inactivity",
             Category.MISC
         ) {
             @Override
@@ -277,9 +295,11 @@ public final class ModuleManager {
                 afkTicks++;
 
                 if (afkTicks >= 600) {
+
                     mc.player.swing(
-                        net.minecraft.world.InteractionHand.MAIN_HAND
+                        InteractionHand.MAIN_HAND
                     );
+
                     afkTicks = 0;
                 }
             }
@@ -304,7 +324,7 @@ public final class ModuleManager {
     }
 
     // =========================================
-    // MODULE REGISTRATION
+    // REGISTER MODULE
     // =========================================
 
     public void register(Module module) {
@@ -317,26 +337,24 @@ public final class ModuleManager {
     }
 
     // =========================================
-    // MODULE TICK
+    // TICK ENABLED MODULES
     // =========================================
 
     public void tick() {
 
         for (Module module : modules) {
 
-            if (!module.isEnabled()) {
-                continue;
+            if (module.isEnabled()) {
+                module.onTick();
             }
-
-            module.onTick();
         }
 
-        // Restore the original FOV when needed.
+        // Restore or update FOV when necessary.
         VisualModules.tickFov();
     }
 
     // =========================================
-    // MODULE LOOKUP
+    // GET MODULE BY NAME
     // =========================================
 
     public Module getByName(String name) {
@@ -355,6 +373,10 @@ public final class ModuleManager {
         return null;
     }
 
+    // =========================================
+    // GET MODULES BY CATEGORY
+    // =========================================
+
     public List<Module> getByCategory(Category category) {
 
         List<Module> result = new ArrayList<>();
@@ -369,6 +391,10 @@ public final class ModuleManager {
         return result;
     }
 
+    // =========================================
+    // GET ALL MODULES
+    // =========================================
+
     public List<Module> getModules() {
         return Collections.unmodifiableList(modules);
     }
@@ -378,7 +404,7 @@ public final class ModuleManager {
     }
 
     // =========================================
-    // MODULE TOGGLE + NOTIFICATIONS
+    // TOGGLE MODULE + NOTIFICATION
     // =========================================
 
     public void toggleModule(Module module) {
