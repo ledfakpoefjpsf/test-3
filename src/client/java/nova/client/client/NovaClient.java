@@ -2,17 +2,16 @@
 package nova.client.client;
 
 // @name: NovaClient
-// @type: Fabric Client Initializer
+// @type: Client Initializer
 // @location: src/client/java/nova/client/client/NovaClient.java
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
 import net.minecraft.client.Minecraft;
 
-import nova.client.config.ConfigManager;
-import nova.client.gui.ClickGuiScreen;
+import nova.client.client.gui.ClickGuiScreen;
 import nova.client.module.ModuleManager;
+import nova.client.config.ConfigManager;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -33,9 +32,7 @@ public class NovaClient implements ClientModInitializer {
         CONFIG.load();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-
             MODULES.tick();
-
             handleGuiKey(client);
         });
 
@@ -43,9 +40,7 @@ public class NovaClient implements ClientModInitializer {
                 new Thread(CONFIG::save)
         );
 
-        System.out.println(
-                "[Nova Client] Initialized successfully!"
-        );
+        System.out.println("[Nova Client] Initialized!");
     }
 
     private static void handleGuiKey(Minecraft client) {
@@ -64,11 +59,8 @@ public class NovaClient implements ClientModInitializer {
         if (keyDown && !guiKeyWasDown) {
 
             if (client.screen instanceof ClickGuiScreen) {
-
                 client.setScreen(null);
-
             } else if (client.screen == null) {
-
                 client.setScreen(new ClickGuiScreen());
             }
         }
