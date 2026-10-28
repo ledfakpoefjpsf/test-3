@@ -1,8 +1,9 @@
-package nova.client.module;
+
+package nova.client.client.module;
 
 // @name: Category
 // @type: Java Enum
-// @location: src/client/java/nova/client/module/
+// @location: src/client/java/nova/client/client/module/Category.java
 
 public enum Category {
     COMBAT("Combat"),
@@ -22,4 +23,3 @@ public enum Category {
         return displayName;
     }
 }
-
