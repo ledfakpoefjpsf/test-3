@@ -10,11 +10,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
 
 public final class MobEspSettings {
 
@@ -50,9 +50,6 @@ public final class MobEspSettings {
             "ender_dragon"
         ));
 
-    private static final Set<Entity> glowing =
-        new HashSet<>();
-
     private MobEspSettings() {}
 
     public static boolean isSelected(String id) {
@@ -87,54 +84,46 @@ public final class MobEspSettings {
         }
     }
 
+    public static boolean shouldGlow(Entity entity) {
+        if (!(entity instanceof LivingEntity)
+            || entity instanceof Player) {
+            return false;
+        }
+
+        Identifier identifier =
+            BuiltInRegistries.ENTITY_TYPE.getKey(
+                entity.getType()
+            );
+
+        return identifier != null
+            && selected.contains(identifier.getPath());
+    }
+
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.level == null) {
-            clear();
             return;
         }
 
-        Set<Entity> matches = new HashSet<>();
-
         for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity)
-                || entity instanceof Player) {
-                continue;
-            }
-
-            Identifier identifier =
-                BuiltInRegistries.ENTITY_TYPE.getKey(
-                    entity.getType()
-                );
-
-            if (identifier == null) {
-                continue;
-            }
-
-            if (selected.contains(identifier.getPath())) {
-                matches.add(entity);
-
-                if (!glowing.contains(entity)) {
-                    entity.setGlowingTag(true);
-                    glowing.add(entity);
-                }
-            }
-        }
-
-        for (Entity entity : Set.copyOf(glowing)) {
-            if (!matches.contains(entity)) {
-                entity.setGlowingTag(false);
-                glowing.remove(entity);
+            if (shouldGlow(entity)) {
+                entity.setGlowingTag(true);
             }
         }
     }
 
     public static void clear() {
-        for (Entity entity : glowing) {
-            entity.setGlowingTag(false);
+        Minecraft mc = Minecraft.getInstance();
+
+        if (mc.level == null) {
+            return;
         }
 
-        glowing.clear();
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (shouldGlow(entity)) {
+                entity.setGlowingTag(false);
+            }
+        }
     }
 }
