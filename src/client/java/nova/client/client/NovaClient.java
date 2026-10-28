@@ -7,7 +7,6 @@ package nova.client.client;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
@@ -21,10 +20,6 @@ import org.lwjgl.glfw.GLFW;
 
 public final class NovaClient implements ClientModInitializer {
 
-    // =====================================
-    // NOVA CLIENT SYSTEMS
-    // =====================================
-
     public static final ModuleManager MODULES =
         new ModuleManager();
 
@@ -33,74 +28,40 @@ public final class NovaClient implements ClientModInitializer {
 
     private static boolean guiKeyWasDown = false;
 
-    // =====================================
-    // CLIENT INITIALIZATION
-    // =====================================
-
     @Override
     public void onInitializeClient() {
 
-        System.out.println(
-            "[Nova Client] Starting Nova Nebula v3..."
-        );
+        System.out.println("[Nova Client] Starting Nova Nebula v3...");
 
-        // Register all modules
         MODULES.initialize();
-
-        // Load saved module settings
         CONFIG.load();
-
-        // Initialize HUD rendering
         NovaHud.initialize();
 
-        // Register client tick event
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
-            // Update enabled modules
             MODULES.tick();
-
-            // Update macro recorder
             handleMacro(client);
-
-            // Handle ClickGUI key
             handleGuiKey(client);
+
         });
 
-        // Save settings when Minecraft closes
         Runtime.getRuntime().addShutdownHook(
-            new Thread(
-                CONFIG::save,
-                "NovaClient-ConfigSave"
-            )
+            new Thread(CONFIG::save, "NovaClient-ConfigSave")
         );
 
-        System.out.println(
-            "[Nova Client] Nova Nebula v3 initialized!"
-        );
+        System.out.println("[Nova Client] Initialized!");
     }
-
-    // =====================================
-    // MACRO SYSTEM
-    // =====================================
 
     private static void handleMacro(Minecraft client) {
 
-        Module macro =
-            MODULES.getByName("Macro Recorder");
+        Module macro = MODULES.getByName("Macro Recorder");
 
         if (macro != null && macro.isEnabled()) {
-
             MacroEngine.tick(client);
-
         } else {
-
             MacroEngine.stop(client);
         }
     }
-
-    // =====================================
-    // CLICK GUI KEY HANDLING
-    // =====================================
 
     private static void handleGuiKey(Minecraft client) {
 
@@ -111,23 +72,15 @@ public final class NovaClient implements ClientModInitializer {
         long window = client.getWindow().handle();
 
         boolean keyDown =
-            GLFW.glfwGetKey(
-                window,
-                GLFW.GLFW_KEY_RIGHT_SHIFT
-            ) == GLFW.GLFW_PRESS;
+            GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT)
+            == GLFW.GLFW_PRESS;
 
-        // Only toggle once per key press
         if (keyDown && !guiKeyWasDown) {
 
             if (client.screen instanceof ClickGuiScreen) {
-
                 client.setScreen(null);
-
             } else if (client.screen == null) {
-
-                client.setScreen(
-                    new ClickGuiScreen()
-                );
+                client.setScreen(new ClickGuiScreen());
             }
         }
 
