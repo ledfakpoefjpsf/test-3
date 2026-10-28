@@ -13,8 +13,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import nova.client.client.NovaClient;
-import nova.client.module.Category;
-import nova.client.module.Module;
+import nova.client.client.module.Category;
+import nova.client.client.module.Module;
 
 public class ClickGuiScreen extends Screen {
 
@@ -71,7 +71,7 @@ public class ClickGuiScreen extends Screen {
         }
 
         List<Module> modules =
-                NovaClient.MODULES.getByCategory(selected);
+            NovaClient.MODULES.getByCategory(selected);
 
         int perPage = 6;
         int start = page * perPage;
@@ -130,18 +130,15 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(
-            GuiGraphics graphics,
-            int mouseX,
-            int mouseY,
-            float delta
+        GuiGraphics graphics,
+        int mouseX,
+        int mouseY,
+        float delta
     ) {
 
-        // Minecraft 1.21.11:
         // Do not call renderBackground() here.
-        // The screen rendering pipeline already handles
-        // background effects, and requesting another blur
-        // can crash with:
-        // "Can only blur once per frame"
+        // Prevents the Minecraft 1.21.11
+        // "Can only blur once per frame" crash.
 
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
