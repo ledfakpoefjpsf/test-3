@@ -15,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import nova.client.client.NovaClient;
 import nova.client.client.module.Category;
 import nova.client.client.module.Module;
+import nova.client.client.module.MobEspSettings;
 
 public class ClickGuiScreen extends Screen {
 
@@ -27,6 +28,7 @@ public class ClickGuiScreen extends Screen {
     private static final int TEXT = 0xFFFFFFFF;
 
     private Category selected = Category.COMBAT;
+    private boolean mobSettings = false;
     private int page = 0;
 
     public ClickGuiScreen() {
@@ -39,18 +41,24 @@ public class ClickGuiScreen extends Screen {
     }
 
     private void rebuild() {
-
         clearWidgets();
 
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
 
+        if (mobSettings) {
+            buildMobSettings(left, top);
+        } else {
+            buildMainMenu(left, top);
+        }
+    }
+
+    private void buildMainMenu(int left, int top) {
+
         Category[] categories = Category.values();
 
         for (int i = 0; i < categories.length; i++) {
-
             Category category = categories[i];
-
             int y = top + 48 + i * 35;
 
             addRenderableWidget(
@@ -78,9 +86,13 @@ public class ClickGuiScreen extends Screen {
         int end = Math.min(start + perPage, modules.size());
 
         for (int i = start; i < end; i++) {
-
             Module module = modules.get(i);
             int y = top + 48 + (i - start) * 35;
+
+            boolean isMobEsp =
+                module.getName().equals("Mob ESP");
+
+            int buttonWidth = isMobEsp ? 155 : 260;
 
             addRenderableWidget(
                 Button.builder(
@@ -94,11 +106,132 @@ public class ClickGuiScreen extends Screen {
                         rebuild();
                     }
                 )
-                .bounds(left + 160, y, 260, 27)
+                .bounds(left + 160, y, buttonWidth, 27)
+                .build()
+            );
+
+            if (isMobEsp) {
+                addRenderableWidget(
+                    Button.builder(
+                        Component.literal("Settings"),
+                        button -> {
+                            mobSettings = true;
+                            page = 0;
+                            rebuild();
+                        }
+                    )
+                    .bounds(left + 322, y, 98, 27)
+                    .build()
+                );
+            }
+        }
+
+        addPageButtons(left, top, modules.size(), perPage);
+    }
+
+    private void buildMobSettings(int left, int top) {
+
+        addRenderableWidget(
+            Button.builder(
+                Component.literal("< Back"),
+                button -> {
+                    mobSettings = false;
+                    page = 0;
+                    NovaClient.CONFIG.save();
+                    rebuild();
+                }
+            )
+            .bounds(left + 15, top + 45, 100, 25)
+            .build()
+        );
+
+        addRenderableWidget(
+            Button.builder(
+                Component.literal("Select All"),
+                button -> {
+                    MobEspSettings.selectAll();
+                    NovaClient.CONFIG.save();
+                    rebuild();
+                }
+            )
+            .bounds(left + 125, top + 45, 130, 25)
+            .build()
+        );
+
+        addRenderableWidget(
+            Button.builder(
+                Component.literal("Select None"),
+                button -> {
+                    MobEspSettings.selectNone();
+                    NovaClient.CONFIG.save();
+                    rebuild();
+                }
+            )
+            .bounds(left + 265, top + 45, 155, 25)
+            .build()
+        );
+
+        String[] mobs = MobEspSettings.MOBS;
+
+        int perPage = 12;
+        int start = page * perPage;
+        int end = Math.min(start + perPage, mobs.length);
+
+        for (int i = start; i < end; i++) {
+            String mob = mobs[i];
+
+            int localIndex = i - start;
+            int column = localIndex % 2;
+            int row = localIndex / 2;
+
+            int x = left + 15 + column * 207;
+            int y = top + 83 + row * 27;
+
+            addRenderableWidget(
+                Button.builder(
+                    Component.literal(
+                        formatName(mob) +
+                        (MobEspSettings.isSelected(mob)
+                            ? " [ON]" : " [OFF]")
+                    ),
+                    button -> {
+                        MobEspSettings.toggle(mob);
+                        NovaClient.CONFIG.save();
+                        rebuild();
+                    }
+                )
+                .bounds(x, y, 198, 23)
                 .build()
             );
         }
 
+        addPageButtons(left, top, mobs.length, perPage);
+    }
+
+    private String formatName(String id) {
+        String[] words = id.split("_");
+        StringBuilder result = new StringBuilder();
+
+        for (String word : words) {
+            if (!result.isEmpty()) {
+                result.append(" ");
+            }
+
+            result.append(
+                Character.toUpperCase(word.charAt(0))
+            );
+            result.append(word.substring(1));
+        }
+
+        return result.toString();
+    }
+
+    private void addPageButtons(
+        int left,
+        int top,
+        int total,
+        int perPage
+    ) {
         addRenderableWidget(
             Button.builder(
                 Component.literal("< Previous"),
@@ -117,7 +250,7 @@ public class ClickGuiScreen extends Screen {
             Button.builder(
                 Component.literal("Next >"),
                 button -> {
-                    if ((page + 1) * perPage < modules.size()) {
+                    if ((page + 1) * perPage < total) {
                         page++;
                         rebuild();
                     }
@@ -135,35 +268,27 @@ public class ClickGuiScreen extends Screen {
         int mouseY,
         float delta
     ) {
-
-        // Do not call renderBackground() here.
-        // Prevents the Minecraft 1.21.11
-        // "Can only blur once per frame" crash.
+        // Do not call renderBackground().
+        // Prevents the double-blur crash.
 
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
 
         graphics.fill(
-            left,
-            top,
-            left + WIDTH,
-            top + HEIGHT,
+            left, top,
+            left + WIDTH, top + HEIGHT,
             BACKGROUND
         );
 
         graphics.fill(
-            left,
-            top,
-            left + WIDTH,
-            top + 34,
+            left, top,
+            left + WIDTH, top + 34,
             PANEL
         );
 
         graphics.fill(
-            left,
-            top + 33,
-            left + WIDTH,
-            top + 35,
+            left, top + 33,
+            left + WIDTH, top + 35,
             ACCENT
         );
 
@@ -177,7 +302,8 @@ public class ClickGuiScreen extends Screen {
 
         graphics.drawString(
             font,
-            selected.getDisplayName(),
+            mobSettings ? "Mob ESP Settings"
+                : selected.getDisplayName(),
             left + 160,
             top + 12,
             ACCENT
