@@ -60,7 +60,7 @@ public class ModuleManager {
 
         register(new Module(
             "Mob ESP",
-            "Highlight loaded living mobs",
+            "Highlight loaded mobs",
             Category.RENDER
         ) {
             @Override
