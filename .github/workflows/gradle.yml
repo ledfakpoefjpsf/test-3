@@ -1,30 +1,40 @@
 
+# @name: NovaClientBuild
+# @type: GitHub Actions Workflow
+# @location: .github/workflows/gradle.yml
+
 name: Nova Client Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
+
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+
   build:
     name: Build Nova Client
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
-
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 21
+      - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -32,8 +42,11 @@ jobs:
       - name: Fix Gradle Permissions
         run: chmod +x ./gradlew
 
+      - name: Show Java Version
+        run: java -version
+
       - name: Build Nova Client
-        run: ./gradlew build --stacktrace
+        run: ./gradlew clean build --stacktrace
 
       - name: Upload Nova Client JAR
         if: success()
@@ -45,6 +58,7 @@ jobs:
             !build/libs/*-sources.jar
             !build/libs/*-dev.jar
           if-no-files-found: error
+          retention-days: 30
 
   dependency-submission:
     name: Submit Dependency Graph
@@ -54,17 +68,21 @@ jobs:
       contents: write
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 21
+      - name: Setup Java 25
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Fix Gradle Permissions
         run: chmod +x ./gradlew
 
-      - name: Submit Dependencies
+      - name: Submit Dependency Graph
         uses: gradle/actions/dependency-submission@v4
