@@ -11,7 +11,6 @@ import java.util.List;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 
 public class ModuleManager {
@@ -22,7 +21,7 @@ public class ModuleManager {
 
         register(new Module(
             "Auto Sprint",
-            "Automatically sprint while moving forward",
+            "Sprint automatically",
             Category.MOVEMENT
         ) {
             @Override
@@ -36,7 +35,6 @@ public class ModuleManager {
                 if (mc.options.keyUp.isDown()
                     && !mc.player.isCrouching()
                     && !mc.player.isUsingItem()) {
-
                     mc.player.setSprinting(true);
                 }
             }
@@ -44,49 +42,44 @@ public class ModuleManager {
 
         register(new Module(
             "Player ESP",
-            "Highlight loaded players",
+            "Highlight other players",
             Category.RENDER
         ) {
             @Override
             public void onTick() {
-                updateGlow(true, false, true);
+                setPlayerGlow(true);
             }
 
             @Override
             public void onDisable() {
-                updateGlow(true, false, false);
+                setPlayerGlow(false);
             }
         });
 
         register(new Module(
             "Mob ESP",
-            "Highlight loaded mobs",
+            "Highlight selected mob types",
             Category.RENDER
         ) {
             @Override
             public void onTick() {
-                updateGlow(false, true, true);
+                MobEspSettings.tick();
             }
 
             @Override
             public void onDisable() {
-                updateGlow(false, true, false);
+                MobEspSettings.clear();
             }
         });
 
         register(new Module(
             "Macro Recorder",
-            "F6 record, F7 playback, F8 stop",
+            "F6 record, F7 play, F8 stop",
             Category.MISC
         ) {});
     }
 
-    private void updateGlow(
-        boolean players,
-        boolean mobs,
-        boolean enabled
-    ) {
-
+    private void setPlayerGlow(boolean enabled) {
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.level == null) {
@@ -94,16 +87,8 @@ public class ModuleManager {
         }
 
         for (Entity entity : mc.level.entitiesForRendering()) {
-
-            if (entity == mc.player) {
-                continue;
-            }
-
-            boolean isPlayer = entity instanceof Player;
-            boolean isMob =
-                entity instanceof LivingEntity && !isPlayer;
-
-            if ((players && isPlayer) || (mobs && isMob)) {
+            if (entity instanceof Player
+                && entity != mc.player) {
                 entity.setGlowingTag(enabled);
             }
         }
@@ -119,14 +104,13 @@ public class ModuleManager {
 
     public List<Module> getByCategory(Category category) {
         return modules.stream()
-            .filter(module -> module.getCategory() == category)
+            .filter(m -> m.getCategory() == category)
             .toList();
     }
 
     public Module getByName(String name) {
         return modules.stream()
-            .filter(module ->
-                module.getName().equalsIgnoreCase(name))
+            .filter(m -> m.getName().equalsIgnoreCase(name))
             .findFirst()
             .orElse(null);
     }
