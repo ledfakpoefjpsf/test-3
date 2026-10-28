@@ -1,98 +1,112 @@
 
-package nova.client.module;
+package nova.client.client.module;
 
 // @name: ModuleManager
 // @type: Java Class
-// @location: src/client/java/nova/client/module/
+// @location: src/client/java/nova/client/client/module/ModuleManager.java
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+
 public class ModuleManager {
 
-    private final List<Module> modules =
-            new ArrayList<>();
+    private final List<Module> modules = new ArrayList<>();
 
     public void initialize() {
 
-        // COMBAT
         register(new Module(
-            "Target HUD",
-            "Display information about a target",
-            Category.COMBAT
-        ) {});
-
-        register(new Module(
-            "Hit Color",
-            "Customize entity hit effects",
-            Category.COMBAT
-        ) {});
-
-        // MOVEMENT
-        register(new Module(
-            "Sprint",
-            "Automatic sprint controls",
+            "Auto Sprint",
+            "Automatically sprint while moving forward",
             Category.MOVEMENT
-        ) {});
+        ) {
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player == null || mc.screen != null) {
+                    return;
+                }
+
+                if (mc.options.keyUp.isDown()
+                    && !mc.player.isCrouching()
+                    && !mc.player.isUsingItem()) {
+
+                    mc.player.setSprinting(true);
+                }
+            }
+        });
 
         register(new Module(
-            "Toggle Sneak",
-            "Toggle sneaking",
-            Category.MOVEMENT
-        ) {});
-
-        // RENDER
-        register(new Module(
-            "Fullbright",
-            "Increase game brightness",
+            "Player ESP",
+            "Highlight loaded players",
             Category.RENDER
-        ) {});
+        ) {
+            @Override
+            public void onTick() {
+                updateGlow(true, false, true);
+            }
+
+            @Override
+            public void onDisable() {
+                updateGlow(true, false, false);
+            }
+        });
 
         register(new Module(
-            "FPS Display",
-            "Display current FPS",
+            "Mob ESP",
+            "Highlight loaded living mobs",
             Category.RENDER
-        ) {});
+        ) {
+            @Override
+            public void onTick() {
+                updateGlow(false, true, true);
+            }
+
+            @Override
+            public void onDisable() {
+                updateGlow(false, true, false);
+            }
+        });
 
         register(new Module(
-            "Coordinates",
-            "Display player coordinates",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Armor HUD",
-            "Display equipped armor",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Keystrokes",
-            "Display movement keys",
-            Category.RENDER
-        ) {});
-
-        // PLAYER
-        register(new Module(
-            "Auto Tool",
-            "Automatically select tools",
-            Category.PLAYER
-        ) {});
-
-        // WORLD
-        register(new Module(
-            "Waypoints",
-            "Save locations",
-            Category.WORLD
-        ) {});
-
-        // MISC
-        register(new Module(
-            "Notifications",
-            "Display client notifications",
+            "Macro Recorder",
+            "F6 record, F7 playback, F8 stop",
             Category.MISC
         ) {});
+    }
+
+    private void updateGlow(
+        boolean players,
+        boolean mobs,
+        boolean enabled
+    ) {
+
+        Minecraft mc = Minecraft.getInstance();
+
+        if (mc.level == null) {
+            return;
+        }
+
+        for (Entity entity : mc.level.entitiesForRendering()) {
+
+            if (entity == mc.player) {
+                continue;
+            }
+
+            boolean isPlayer = entity instanceof Player;
+            boolean isMob =
+                entity instanceof LivingEntity && !isPlayer;
+
+            if ((players && isPlayer) || (mobs && isMob)) {
+                entity.setGlowingTag(enabled);
+            }
+        }
     }
 
     public void register(Module module) {
@@ -105,13 +119,14 @@ public class ModuleManager {
 
     public List<Module> getByCategory(Category category) {
         return modules.stream()
-            .filter(m -> m.getCategory() == category)
+            .filter(module -> module.getCategory() == category)
             .toList();
     }
 
     public Module getByName(String name) {
         return modules.stream()
-            .filter(m -> m.getName().equalsIgnoreCase(name))
+            .filter(module ->
+                module.getName().equalsIgnoreCase(name))
             .findFirst()
             .orElse(null);
     }
@@ -124,4 +139,3 @@ public class ModuleManager {
         }
     }
 }
-
