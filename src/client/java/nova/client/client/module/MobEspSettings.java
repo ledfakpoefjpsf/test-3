@@ -2,14 +2,13 @@
 package nova.client.client.module;
 
 // @name: MobEspSettings
-// @type: Java Class
+// @type: Client Mob ESP Settings
 // @location: src/client/java/nova/client/client/module/MobEspSettings.java
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
@@ -77,6 +76,10 @@ public final class MobEspSettings {
     public static void setSelected(Set<String> ids) {
         selected.clear();
 
+        if (ids == null) {
+            return;
+        }
+
         for (String id : MOBS) {
             if (ids.contains(id)) {
                 selected.add(id);
@@ -85,6 +88,7 @@ public final class MobEspSettings {
     }
 
     public static boolean shouldGlow(Entity entity) {
+
         if (!(entity instanceof LivingEntity)
             || entity instanceof Player) {
             return false;
@@ -99,31 +103,10 @@ public final class MobEspSettings {
             && selected.contains(identifier.getPath());
     }
 
-    public static void tick() {
-        Minecraft mc = Minecraft.getInstance();
+    // Kept for compatibility with ModuleManager.
+    // Actual ESP is handled by EntityGlowMixin.
 
-        if (mc.level == null) {
-            return;
-        }
+    public static void tick() {}
 
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (shouldGlow(entity)) {
-                entity.setGlowingTag(true);
-            }
-        }
-    }
-
-    public static void clear() {
-        Minecraft mc = Minecraft.getInstance();
-
-        if (mc.level == null) {
-            return;
-        }
-
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (shouldGlow(entity)) {
-                entity.setGlowingTag(false);
-            }
-        }
-    }
+    public static void clear() {}
 }
