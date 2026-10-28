@@ -2,7 +2,7 @@
 package nova.client.client.module;
 
 // @name: ModuleManager
-// @type: Java Class
+// @type: Client Module Registry
 // @location: src/client/java/nova/client/client/module/ModuleManager.java
 
 import java.util.ArrayList;
@@ -10,8 +10,6 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
 
 public class ModuleManager {
 
@@ -19,9 +17,13 @@ public class ModuleManager {
 
     public void initialize() {
 
+        // ====================================
+        // MOVEMENT
+        // ====================================
+
         register(new Module(
             "Auto Sprint",
-            "Sprint automatically",
+            "Automatically sprint while walking forward",
             Category.MOVEMENT
         ) {
             @Override
@@ -35,10 +37,59 @@ public class ModuleManager {
                 if (mc.options.keyUp.isDown()
                     && !mc.player.isCrouching()
                     && !mc.player.isUsingItem()) {
+
                     mc.player.setSprinting(true);
                 }
             }
         });
+
+        register(new Module(
+            "Auto Walk",
+            "Automatically hold the forward movement key",
+            Category.MOVEMENT
+        ) {
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player != null && mc.screen == null) {
+                    mc.options.keyUp.setDown(true);
+                }
+            }
+
+            @Override
+            public void onDisable() {
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyUp.setDown(false);
+            }
+        });
+
+        register(new Module(
+            "Auto Sneak",
+            "Automatically hold the sneak key",
+            Category.MOVEMENT
+        ) {
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player != null && mc.screen == null) {
+                    mc.options.keyShift.setDown(true);
+                }
+            }
+
+            @Override
+            public void onDisable() {
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyShift.setDown(false);
+            }
+        });
+
+        // ====================================
+        // RENDER
+        // ====================================
 
         register(new Module(
             "Player ESP",
@@ -47,18 +98,13 @@ public class ModuleManager {
         ) {
             @Override
             public void onTick() {
-                setPlayerGlow(true);
-            }
-
-            @Override
-            public void onDisable() {
-                setPlayerGlow(false);
+                // Rendering fix comes later.
             }
         });
 
         register(new Module(
             "Mob ESP",
-            "Highlight selected mob types",
+            "Highlight selected mobs",
             Category.RENDER
         ) {
             @Override
@@ -72,27 +118,21 @@ public class ModuleManager {
             }
         });
 
+        // ====================================
+        // MISC
+        // ====================================
+
         register(new Module(
             "Macro Recorder",
-            "F6 record, F7 play, F8 stop",
+            "Record and replay movement macros",
             Category.MISC
         ) {});
+
     }
 
-    private void setPlayerGlow(boolean enabled) {
-        Minecraft mc = Minecraft.getInstance();
-
-        if (mc.level == null) {
-            return;
-        }
-
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (entity instanceof Player
-                && entity != mc.player) {
-                entity.setGlowingTag(enabled);
-            }
-        }
-    }
+    // ====================================
+    // MODULE REGISTRATION
+    // ====================================
 
     public void register(Module module) {
         modules.add(module);
@@ -104,16 +144,22 @@ public class ModuleManager {
 
     public List<Module> getByCategory(Category category) {
         return modules.stream()
-            .filter(m -> m.getCategory() == category)
+            .filter(module -> module.getCategory() == category)
             .toList();
     }
 
     public Module getByName(String name) {
         return modules.stream()
-            .filter(m -> m.getName().equalsIgnoreCase(name))
+            .filter(module ->
+                module.getName().equalsIgnoreCase(name)
+            )
             .findFirst()
             .orElse(null);
     }
+
+    // ====================================
+    // MODULE TICK
+    // ====================================
 
     public void tick() {
         for (Module module : modules) {
