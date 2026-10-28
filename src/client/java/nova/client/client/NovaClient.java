@@ -53,9 +53,7 @@ public class NovaClient implements ClientModInitializer {
             new Thread(CONFIG::save)
         );
 
-        System.out.println(
-            "[Nova Client] Initialized successfully!"
-        );
+        System.out.println("[Nova Client] Initialized!");
     }
 
     private static void handleGuiKey(Minecraft client) {
