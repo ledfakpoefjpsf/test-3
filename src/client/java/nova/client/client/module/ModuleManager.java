@@ -11,6 +11,7 @@ import java.util.List;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 
 public class ModuleManager {
 
@@ -20,9 +21,13 @@ public class ModuleManager {
 
     public void initialize() {
 
-        // ================================
+        if (!modules.isEmpty()) {
+            return;
+        }
+
+        // ====================================
         // MOVEMENT
-        // ================================
+        // ====================================
 
         register(new Module(
             "Auto Sprint",
@@ -88,16 +93,58 @@ public class ModuleManager {
             }
         });
 
-        // ================================
+        register(new Module(
+            "Auto Jump",
+            "Automatically jump while moving on the ground",
+            Category.MOVEMENT
+        ) {
+            private boolean jumpedLastTick = false;
+
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player == null || mc.screen != null) {
+                    jumpedLastTick = false;
+                    return;
+                }
+
+                boolean moving =
+                    mc.options.keyUp.isDown()
+                    || mc.options.keyDown.isDown()
+                    || mc.options.keyLeft.isDown()
+                    || mc.options.keyRight.isDown();
+
+                boolean shouldJump =
+                    moving
+                    && mc.player.onGround()
+                    && !mc.player.isCrouching()
+                    && !mc.player.isUsingItem();
+
+                if (shouldJump && !jumpedLastTick) {
+                    mc.player.jumpFromGround();
+                }
+
+                jumpedLastTick = shouldJump;
+            }
+
+            @Override
+            public void onDisable() {
+                jumpedLastTick = false;
+            }
+        });
+
+        // ====================================
         // RENDER
-        // ================================
+        // ====================================
 
         register(new Module(
             "Player ESP",
-            "Highlight players",
+            "Highlight other players",
             Category.RENDER
         ) {
-            // ESP renderer will be implemented later.
+            // Existing placeholder.
+            // Proper ESP rendering comes later.
         });
 
         register(new Module(
@@ -118,7 +165,7 @@ public class ModuleManager {
 
         register(new Module(
             "Coordinates HUD",
-            "Display your XYZ coordinates",
+            "Display XYZ coordinates",
             Category.RENDER
         ) {});
 
@@ -128,9 +175,73 @@ public class ModuleManager {
             Category.RENDER
         ) {});
 
-        // ================================
+        register(new Module(
+            "FOV Changer",
+            "Change your normal FOV to 100 degrees",
+            Category.RENDER
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFov();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.tickFov();
+            }
+        });
+
+        register(new Module(
+            "Zoom",
+            "Hold C to zoom in while enabled",
+            Category.RENDER
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFov();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.tickFov();
+            }
+        });
+
+        register(new Module(
+            "Fullbright",
+            "Brighten dark areas using client night vision",
+            Category.RENDER
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFullbright();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.disableFullbright();
+            }
+        });
+
+        register(new Module(
+            "No Fog",
+            "Toggle Minecraft's built-in fog rendering",
+            Category.RENDER
+        ) {
+            @Override
+            public void onEnable() {
+                VisualModules.enableNoFog();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.disableNoFog();
+            }
+        });
+
+        // ====================================
         // PLAYER
-        // ================================
+        // ====================================
 
         register(new Module(
             "Auto Respawn",
@@ -165,19 +276,19 @@ public class ModuleManager {
             }
         });
 
-        // ================================
+        // ====================================
         // MISC
-        // ================================
+        // ====================================
 
         register(new Module(
             "Macro Recorder",
-            "Record and replay movement",
+            "Record and replay movement macros",
             Category.MISC
         ) {});
 
         register(new Module(
             "Anti AFK",
-            "Periodically swing your hand while idle",
+            "Periodically swing your hand",
             Category.MISC
         ) {
             @Override
@@ -191,13 +302,9 @@ public class ModuleManager {
 
                 afkTicks++;
 
-                // Approximately once every 30 seconds.
                 if (afkTicks >= 600) {
                     afkTicks = 0;
-
-                    mc.player.swing(
-                        net.minecraft.world.InteractionHand.MAIN_HAND
-                    );
+                    mc.player.swing(InteractionHand.MAIN_HAND);
                 }
             }
 
@@ -209,14 +316,14 @@ public class ModuleManager {
 
         register(new Module(
             "Notifications",
-            "Show feedback when toggling modules",
+            "Show feedback when modules toggle",
             Category.MISC
         ) {});
     }
 
-    // ================================
+    // ====================================
     // MODULE REGISTRATION
-    // ================================
+    // ====================================
 
     public void register(Module module) {
         modules.add(module);
@@ -241,11 +348,19 @@ public class ModuleManager {
             .orElse(null);
     }
 
+    // ====================================
+    // TOGGLE + NOTIFICATIONS
+    // ====================================
+
     public void toggleModule(Module module) {
+
+        if (module == null) {
+            return;
+        }
+
         module.toggle();
 
-        Module notifications =
-            getByName("Notifications");
+        Module notifications = getByName("Notifications");
 
         Minecraft mc = Minecraft.getInstance();
 
@@ -264,15 +379,20 @@ public class ModuleManager {
         }
     }
 
-    // ================================
+    // ====================================
     // MODULE TICK
-    // ================================
+    // ====================================
 
     public void tick() {
+
         for (Module module : modules) {
             if (module.isEnabled()) {
                 module.onTick();
             }
         }
+
+        // Restore original FOV when both FOV modules
+        // are disabled.
+        VisualModules.tickFov();
     }
 }
