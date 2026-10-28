@@ -10,18 +10,20 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
-import nova.client.module.ModuleManager;
-import nova.client.config.ConfigManager;
+import nova.client.client.macro.MacroEngine;
+import nova.client.client.module.Module;
+import nova.client.client.module.ModuleManager;
+import nova.client.client.config.ConfigManager;
 
 import org.lwjgl.glfw.GLFW;
 
 public class NovaClient implements ClientModInitializer {
 
     public static final ModuleManager MODULES =
-            new ModuleManager();
+        new ModuleManager();
 
     public static final ConfigManager CONFIG =
-            new ConfigManager(MODULES);
+        new ConfigManager(MODULES);
 
     private static boolean guiKeyWasDown = false;
 
@@ -32,15 +34,28 @@ public class NovaClient implements ClientModInitializer {
         CONFIG.load();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+
             MODULES.tick();
+
+            Module macro =
+                MODULES.getByName("Macro Recorder");
+
+            if (macro != null && macro.isEnabled()) {
+                MacroEngine.tick(client);
+            } else {
+                MacroEngine.stop(client);
+            }
+
             handleGuiKey(client);
         });
 
         Runtime.getRuntime().addShutdownHook(
-                new Thread(CONFIG::save)
+            new Thread(CONFIG::save)
         );
 
-        System.out.println("[Nova Client] Initialized!");
+        System.out.println(
+            "[Nova Client] Initialized successfully!"
+        );
     }
 
     private static void handleGuiKey(Minecraft client) {
@@ -51,10 +66,11 @@ public class NovaClient implements ClientModInitializer {
 
         long window = client.getWindow().handle();
 
-        boolean keyDown = GLFW.glfwGetKey(
+        boolean keyDown =
+            GLFW.glfwGetKey(
                 window,
                 GLFW.GLFW_KEY_RIGHT_SHIFT
-        ) == GLFW.GLFW_PRESS;
+            ) == GLFW.GLFW_PRESS;
 
         if (keyDown && !guiKeyWasDown) {
 
