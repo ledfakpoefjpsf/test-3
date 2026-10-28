@@ -1,23 +1,23 @@
 
-package nova.client.config;
+package nova.client.client.config;
 
 // @name: ConfigManager
 // @type: Java Class
-// @location: src/client/java/nova/client/config/
+// @location: src/client/java/nova/client/client/config/ConfigManager.java
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import nova.client.module.Module;
-import nova.client.module.ModuleManager;
-
-import net.fabricmc.loader.api.FabricLoader;
-
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import net.fabricmc.loader.api.FabricLoader;
+
+import nova.client.client.module.Module;
+import nova.client.client.module.ModuleManager;
 
 public class ConfigManager {
 
@@ -43,46 +43,36 @@ public class ConfigManager {
             for (Module module : manager.getModules()) {
                 JsonObject data = new JsonObject();
 
-                data.addProperty(
-                    "enabled",
-                    module.isEnabled()
-                );
-
-                data.addProperty(
-                    "keybind",
-                    module.getKeybind()
-                );
+                data.addProperty("enabled", module.isEnabled());
+                data.addProperty("keybind", module.getKeybind());
 
                 root.add(module.getName(), data);
             }
 
-            Files.createDirectories(
-                path.getParent()
-            );
+            Files.createDirectories(path.getParent());
 
-            try (Writer writer =
-                    Files.newBufferedWriter(path)) {
+            try (Writer writer = Files.newBufferedWriter(path)) {
                 gson.toJson(root, writer);
             }
 
         } catch (Exception e) {
-            System.err.println(
-                "[NovaClient] Config save failed"
-            );
+            System.err.println("[Nova Client] Config save failed");
             e.printStackTrace();
         }
     }
 
     public void load() {
-        if (!Files.exists(path)) return;
+        if (!Files.exists(path)) {
+            return;
+        }
 
-        try (Reader reader =
-                Files.newBufferedReader(path)) {
+        try (Reader reader = Files.newBufferedReader(path)) {
 
-            JsonObject root =
-                gson.fromJson(reader, JsonObject.class);
+            JsonObject root = gson.fromJson(reader, JsonObject.class);
 
-            if (root == null) return;
+            if (root == null) {
+                return;
+            }
 
             for (Module module : manager.getModules()) {
 
@@ -107,11 +97,8 @@ public class ConfigManager {
             }
 
         } catch (Exception e) {
-            System.err.println(
-                "[NovaClient] Config load failed"
-            );
+            System.err.println("[Nova Client] Config load failed");
             e.printStackTrace();
         }
     }
 }
-
