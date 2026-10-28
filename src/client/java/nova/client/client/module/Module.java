@@ -1,9 +1,9 @@
 
-package nova.client.module;
+package nova.client.client.module;
 
 // @name: Module
 // @type: Java Class
-// @location: src/client/java/nova/client/module/
+// @location: src/client/java/nova/client/client/module/Module.java
 
 public abstract class Module {
 
@@ -14,11 +14,7 @@ public abstract class Module {
     private boolean enabled = false;
     private int keybind = -1;
 
-    public Module(
-            String name,
-            String description,
-            Category category) {
-
+    public Module(String name, String description, Category category) {
         this.name = name;
         this.description = description;
         this.category = category;
@@ -29,7 +25,9 @@ public abstract class Module {
     }
 
     public void setEnabled(boolean enabled) {
-        if (this.enabled == enabled) return;
+        if (this.enabled == enabled) {
+            return;
+        }
 
         this.enabled = enabled;
 
