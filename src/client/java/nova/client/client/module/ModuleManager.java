@@ -10,20 +10,23 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 public class ModuleManager {
 
     private final List<Module> modules = new ArrayList<>();
 
+    private int afkTicks = 0;
+
     public void initialize() {
 
-        // ====================================
+        // ================================
         // MOVEMENT
-        // ====================================
+        // ================================
 
         register(new Module(
             "Auto Sprint",
-            "Automatically sprint while walking forward",
+            "Automatically sprint while moving forward",
             Category.MOVEMENT
         ) {
             @Override
@@ -45,7 +48,7 @@ public class ModuleManager {
 
         register(new Module(
             "Auto Walk",
-            "Automatically hold the forward movement key",
+            "Automatically walk forward",
             Category.MOVEMENT
         ) {
             @Override
@@ -59,15 +62,14 @@ public class ModuleManager {
 
             @Override
             public void onDisable() {
-                Minecraft mc = Minecraft.getInstance();
-
-                mc.options.keyUp.setDown(false);
+                Minecraft.getInstance()
+                    .options.keyUp.setDown(false);
             }
         });
 
         register(new Module(
             "Auto Sneak",
-            "Automatically hold the sneak key",
+            "Automatically hold sneak",
             Category.MOVEMENT
         ) {
             @Override
@@ -81,25 +83,21 @@ public class ModuleManager {
 
             @Override
             public void onDisable() {
-                Minecraft mc = Minecraft.getInstance();
-
-                mc.options.keyShift.setDown(false);
+                Minecraft.getInstance()
+                    .options.keyShift.setDown(false);
             }
         });
 
-        // ====================================
+        // ================================
         // RENDER
-        // ====================================
+        // ================================
 
         register(new Module(
             "Player ESP",
-            "Highlight other players",
+            "Highlight players",
             Category.RENDER
         ) {
-            @Override
-            public void onTick() {
-                // Rendering fix comes later.
-            }
+            // ESP renderer will be implemented later.
         });
 
         register(new Module(
@@ -118,21 +116,107 @@ public class ModuleManager {
             }
         });
 
-        // ====================================
+        register(new Module(
+            "Coordinates HUD",
+            "Display your XYZ coordinates",
+            Category.RENDER
+        ) {});
+
+        register(new Module(
+            "FPS HUD",
+            "Display current FPS",
+            Category.RENDER
+        ) {});
+
+        // ================================
+        // PLAYER
+        // ================================
+
+        register(new Module(
+            "Auto Respawn",
+            "Automatically respawn after death",
+            Category.PLAYER
+        ) {
+            private boolean handledDeath = false;
+
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player == null || mc.level == null) {
+                    handledDeath = false;
+                    return;
+                }
+
+                if (!mc.player.isDeadOrDying()) {
+                    handledDeath = false;
+                    return;
+                }
+
+                if (!handledDeath) {
+                    mc.player.respawn();
+                    handledDeath = true;
+                }
+            }
+
+            @Override
+            public void onDisable() {
+                handledDeath = false;
+            }
+        });
+
+        // ================================
         // MISC
-        // ====================================
+        // ================================
 
         register(new Module(
             "Macro Recorder",
-            "Record and replay movement macros",
+            "Record and replay movement",
             Category.MISC
         ) {});
 
+        register(new Module(
+            "Anti AFK",
+            "Periodically swing your hand while idle",
+            Category.MISC
+        ) {
+            @Override
+            public void onTick() {
+                Minecraft mc = Minecraft.getInstance();
+
+                if (mc.player == null || mc.screen != null) {
+                    afkTicks = 0;
+                    return;
+                }
+
+                afkTicks++;
+
+                // Approximately once every 30 seconds.
+                if (afkTicks >= 600) {
+                    afkTicks = 0;
+
+                    mc.player.swing(
+                        net.minecraft.world.InteractionHand.MAIN_HAND
+                    );
+                }
+            }
+
+            @Override
+            public void onDisable() {
+                afkTicks = 0;
+            }
+        });
+
+        register(new Module(
+            "Notifications",
+            "Show feedback when toggling modules",
+            Category.MISC
+        ) {});
     }
 
-    // ====================================
+    // ================================
     // MODULE REGISTRATION
-    // ====================================
+    // ================================
 
     public void register(Module module) {
         modules.add(module);
@@ -157,9 +241,32 @@ public class ModuleManager {
             .orElse(null);
     }
 
-    // ====================================
+    public void toggleModule(Module module) {
+        module.toggle();
+
+        Module notifications =
+            getByName("Notifications");
+
+        Minecraft mc = Minecraft.getInstance();
+
+        if (notifications != null
+            && notifications.isEnabled()
+            && mc.player != null) {
+
+            mc.player.displayClientMessage(
+                Component.literal(
+                    "[Nova] " + module.getName()
+                    + ": "
+                    + (module.isEnabled() ? "ON" : "OFF")
+                ),
+                true
+            );
+        }
+    }
+
+    // ================================
     // MODULE TICK
-    // ====================================
+    // ================================
 
     public void tick() {
         for (Module module : modules) {
