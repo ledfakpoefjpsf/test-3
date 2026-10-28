@@ -4,7 +4,7 @@
   "id": "nova-client",
   "version": "${version}",
   "name": "Nova Client",
-  "description": "A customizable Minecraft Fabric hybrid client with modules, ClickGUI, HUD, and keybinds.",
+  "description": "A customizable Minecraft Fabric client with modules, ClickGUI, HUD, and configuration support.",
   "authors": [
     "Nova Client"
   ],
@@ -12,7 +12,7 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "nova.client.NovaClient"
+      "nova.client.client.NovaClient"
     ]
   },
   "mixins": [
