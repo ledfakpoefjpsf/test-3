@@ -136,7 +136,12 @@ public class ClickGuiScreen extends Screen {
             float delta
     ) {
 
-        renderBackground(graphics, mouseX, mouseY, delta);
+        // Minecraft 1.21.11:
+        // Do not call renderBackground() here.
+        // The screen rendering pipeline already handles
+        // background effects, and requesting another blur
+        // can crash with:
+        // "Can only blur once per frame"
 
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
