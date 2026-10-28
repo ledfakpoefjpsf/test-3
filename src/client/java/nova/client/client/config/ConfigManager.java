@@ -7,17 +7,22 @@ package nova.client.client.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
 
 import net.fabricmc.loader.api.FabricLoader;
 
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
+import nova.client.client.module.MobEspSettings;
 
 public class ConfigManager {
 
@@ -36,68 +41,151 @@ public class ConfigManager {
         this.manager = manager;
     }
 
+    // =========================================
+    // SAVE CONFIGURATION
+    // =========================================
+
     public void save() {
         try {
             JsonObject root = new JsonObject();
 
+            // Save all module states and keybinds
             for (Module module : manager.getModules()) {
+
                 JsonObject data = new JsonObject();
 
-                data.addProperty("enabled", module.isEnabled());
-                data.addProperty("keybind", module.getKeybind());
+                data.addProperty(
+                    "enabled",
+                    module.isEnabled()
+                );
+
+                data.addProperty(
+                    "keybind",
+                    module.getKeybind()
+                );
 
                 root.add(module.getName(), data);
             }
 
+            // Save selected Mob ESP entities
+            JsonArray mobSelections = new JsonArray();
+
+            for (String id : MobEspSettings.getSelected()) {
+                mobSelections.add(id);
+            }
+
+            root.add("mobEspSelections", mobSelections);
+
+            // Create config folder if missing
             Files.createDirectories(path.getParent());
 
-            try (Writer writer = Files.newBufferedWriter(path)) {
+            // Write configuration
+            try (Writer writer =
+                     Files.newBufferedWriter(path)) {
+
                 gson.toJson(root, writer);
             }
 
+            System.out.println(
+                "[Nova Client] Configuration saved!"
+            );
+
         } catch (Exception e) {
-            System.err.println("[Nova Client] Config save failed");
+
+            System.err.println(
+                "[Nova Client] Failed to save configuration!"
+            );
+
             e.printStackTrace();
         }
     }
 
+    // =========================================
+    // LOAD CONFIGURATION
+    // =========================================
+
     public void load() {
+
         if (!Files.exists(path)) {
+            System.out.println(
+                "[Nova Client] No configuration found. Using defaults."
+            );
             return;
         }
 
-        try (Reader reader = Files.newBufferedReader(path)) {
+        try (Reader reader =
+                 Files.newBufferedReader(path)) {
 
-            JsonObject root = gson.fromJson(reader, JsonObject.class);
+            JsonObject root =
+                gson.fromJson(reader, JsonObject.class);
 
             if (root == null) {
                 return;
             }
 
+            // Load Mob ESP selections
+            if (root.has("mobEspSelections")
+                && root.get("mobEspSelections").isJsonArray()) {
+
+                Set<String> ids = new HashSet<>();
+
+                JsonArray savedMobs =
+                    root.getAsJsonArray("mobEspSelections");
+
+                for (JsonElement element : savedMobs) {
+                    if (element.isJsonPrimitive()
+                        && element.getAsJsonPrimitive().isString()) {
+
+                        ids.add(element.getAsString());
+                    }
+                }
+
+                MobEspSettings.setSelected(ids);
+            }
+
+            // Load all module states and keybinds
             for (Module module : manager.getModules()) {
 
                 if (!root.has(module.getName())) {
                     continue;
                 }
 
-                JsonObject data =
-                    root.getAsJsonObject(module.getName());
+                JsonElement entry =
+                    root.get(module.getName());
 
-                if (data.has("keybind")) {
+                if (!entry.isJsonObject()) {
+                    continue;
+                }
+
+                JsonObject data = entry.getAsJsonObject();
+
+                if (data.has("keybind")
+                    && data.get("keybind").isJsonPrimitive()) {
+
                     module.setKeybind(
                         data.get("keybind").getAsInt()
                     );
                 }
 
-                if (data.has("enabled")) {
+                if (data.has("enabled")
+                    && data.get("enabled").isJsonPrimitive()) {
+
                     module.setEnabled(
                         data.get("enabled").getAsBoolean()
                     );
                 }
             }
 
+            System.out.println(
+                "[Nova Client] Configuration loaded!"
+            );
+
         } catch (Exception e) {
-            System.err.println("[Nova Client] Config load failed");
+
+            System.err.println(
+                "[Nova Client] Failed to load configuration!"
+            );
+
             e.printStackTrace();
         }
     }
