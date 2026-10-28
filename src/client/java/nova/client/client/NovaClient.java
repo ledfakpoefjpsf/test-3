@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
+import nova.client.client.gui.NovaHud;
 import nova.client.client.macro.MacroEngine;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
@@ -31,7 +32,11 @@ public class NovaClient implements ClientModInitializer {
     public void onInitializeClient() {
 
         MODULES.initialize();
+
         CONFIG.load();
+
+        // Register the Coordinates and FPS HUD.
+        NovaHud.initialize();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
