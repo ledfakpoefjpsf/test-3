@@ -13,8 +13,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import nova.client.client.NovaClient;
-import nova.client.client.module.Category;
-import nova.client.client.module.Module;
+import nova.client.module.Category;
+import nova.client.module.Module;
 
 public class ClickGuiScreen extends Screen {
 
