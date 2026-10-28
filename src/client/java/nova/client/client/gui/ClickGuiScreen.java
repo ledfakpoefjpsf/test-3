@@ -5,10 +5,11 @@ package nova.client.client.gui;
 // @type: Client GUI Screen
 // @location: src/client/java/nova/client/client/gui/ClickGuiScreen.java
 
+import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -17,598 +18,1092 @@ import nova.client.client.module.Category;
 import nova.client.client.module.Module;
 import nova.client.client.module.MobEspSettings;
 
+import org.lwjgl.glfw.GLFW;
+
 public class ClickGuiScreen extends Screen {
 
-    private static final int BG = 0xE90D0A18;
-    private static final int PANEL = 0xF01A1428;
-    private static final int PANEL_BORDER = 0xFF65458F;
-    private static final int PURPLE = 0xFFB78AFF;
-    private static final int WHITE = 0xFFF3ECFF;
-    private static final int MUTED = 0xFF9588AC;
-    private static final int ACTIVE = 0xFF513179;
+    // ========================================
+    // NOVA NEBULA COLORS
+    // ========================================
 
-    private static final long WAVE_STEP_MS = 85;
-    private static final long WAVE_DURATION_MS = 380;
+    private static final int BACKGROUND = 0xC8080711;
+    private static final int PANEL_BG = 0xF013101E;
+    private static final int PANEL_BORDER = 0xFF62428B;
+    private static final int HEADER = 0xFF422663;
+    private static final int HEADER_TOP = 0xFF8450D1;
+    private static final int ROW = 0xFF1B1728;
+    private static final int ROW_HOVER = 0xFF302044;
+    private static final int ROW_ACTIVE = 0xFF39244F;
+    private static final int PURPLE = 0xFFBC91FF;
+    private static final int WHITE = 0xFFF4EEFF;
+    private static final int MUTED = 0xFF998BAE;
+    private static final int GREEN = 0xFFBA8CFF;
+
+    private static final int PANEL_WIDTH = 125;
+    private static final int PANEL_HEIGHT = 215;
+    private static final int HEADER_HEIGHT = 25;
+    private static final int ROW_HEIGHT = 19;
+    private static final int GAP = 9;
+
+    private static final long WAVE_STEP = 85L;
+    private static final long WAVE_LENGTH = 360L;
+
+    private final List<Panel> panels = new ArrayList<>();
 
     private long openedAt;
-    private int builtPanels;
 
-    private boolean settingsOpen;
-    private int mobPage;
+    private boolean lastLeft;
+    private boolean lastRight;
+    private boolean lastPageUp;
+    private boolean lastPageDown;
 
-    private final boolean[] collapsed =
-        new boolean[Category.values().length];
+    private Panel dragging;
+    private int dragOffsetX;
+    private int dragOffsetY;
+
+    private Module expandedModule;
+    private int mobScroll;
+
+    private int mouseX;
+    private int mouseY;
+
+    private static class Panel {
+
+        final Category category;
+
+        int x;
+        int y;
+        int scroll;
+
+        boolean collapsed;
+
+        Panel(Category category, int x, int y) {
+            this.category = category;
+            this.x = x;
+            this.y = y;
+        }
+    }
 
     public ClickGuiScreen() {
         super(Component.literal("Nova Nebula"));
     }
 
-    private int columns() {
-        return width >= 790 ? 6 : 3;
-    }
-
-    private int panelWidth() {
-        if (columns() == 6) {
-            return Math.max(
-                108,
-                Math.min(150, (width - 40) / 6 - 8)
-            );
-        }
-
-        return Math.max(
-            105,
-            Math.min(185, (width - 30) / 3 - 8)
-        );
-    }
-
-    private int gap() {
-        return 8;
-    }
-
-    private int boardWidth() {
-        return columns() * panelWidth()
-            + (columns() - 1) * gap();
-    }
-
-    private int startX() {
-        return (width - boardWidth()) / 2;
-    }
-
-    private int panelHeight() {
-        if (columns() == 6) {
-            return Math.min(245, height - 105);
-        }
-
-        return Math.min(
-            175,
-            (height - 100) / 2
-        );
-    }
-
-    private int startY() {
-        return 55;
-    }
-
-    private int px(int i) {
-        return startX()
-            + (i % columns()) * (panelWidth() + gap());
-    }
-
-    private int py(int i) {
-        return startY()
-            + (i / columns()) * (panelHeight() + 9);
-    }
-
-    // =========================================
-    // INITIALIZE GUI
-    // =========================================
+    // ========================================
+    // INITIALIZATION
+    // ========================================
 
     @Override
     protected void init() {
-        openedAt = System.currentTimeMillis();
-        builtPanels = -1;
-        settingsOpen = false;
 
-        rebuild();
+        openedAt = System.currentTimeMillis();
+
+        if (panels.isEmpty()) {
+
+            Category[] categories = Category.values();
+
+            int columns = width >= 850 ? 6 : 3;
+
+            int totalWidth =
+                columns * PANEL_WIDTH
+                + (columns - 1) * GAP;
+
+            int startX = Math.max(
+                8,
+                (width - totalWidth) / 2
+            );
+
+            for (int i = 0; i < categories.length; i++) {
+
+                int column = i % columns;
+                int row = i / columns;
+
+                panels.add(
+                    new Panel(
+                        categories[i],
+                        startX + column
+                            * (PANEL_WIDTH + GAP),
+                        57 + row
+                            * (PANEL_HEIGHT + GAP)
+                    )
+                );
+            }
+        }
     }
 
-    // =========================================
-    // WAVE OPEN ANIMATION
-    // =========================================
+    // ========================================
+    // MOUSE POLLING
+    // ========================================
 
     @Override
     public void tick() {
 
-        int count = (int) Math.min(
-            Category.values().length,
-            Math.max(
-                0,
-                (System.currentTimeMillis()
-                    - openedAt
-                    - WAVE_DURATION_MS)
-                    / WAVE_STEP_MS + 1
-            )
-        );
+        Minecraft mc = Minecraft.getInstance();
 
-        if (count != builtPanels) {
-            builtPanels = count;
-            rebuild();
-        }
-    }
-
-    // =========================================
-    // BUILD GUI
-    // =========================================
-
-    private void rebuild() {
-
-        clearWidgets();
-
-        int right = width - 12;
-
-        addRenderableWidget(
-            Button.builder(
-                Component.literal("Wave"),
-                b -> {
-                    openedAt = System.currentTimeMillis();
-                    builtPanels = -1;
-                    rebuild();
-                }
-            ).bounds(
-                right - 40,
-                13,
-                40,
-                19
-            ).build()
-        );
-
-        if (settingsOpen) {
-            buildMobSettings();
+        if (mc.getWindow() == null) {
             return;
         }
 
-        Category[] categories = Category.values();
+        long handle = mc.getWindow().handle();
 
-        for (int i = 0; i < categories.length; i++) {
+        mouseX = (int) (
+            mc.mouseHandler.xpos()
+                * mc.getWindow().getGuiScaledWidth()
+                / mc.getWindow().getScreenWidth()
+        );
 
-            if (i >= builtPanels) {
+        mouseY = (int) (
+            mc.mouseHandler.ypos()
+                * mc.getWindow().getGuiScaledHeight()
+                / mc.getWindow().getScreenHeight()
+        );
+
+        boolean left = GLFW.glfwGetMouseButton(
+            handle,
+            GLFW.GLFW_MOUSE_BUTTON_LEFT
+        ) == GLFW.GLFW_PRESS;
+
+        boolean right = GLFW.glfwGetMouseButton(
+            handle,
+            GLFW.GLFW_MOUSE_BUTTON_RIGHT
+        ) == GLFW.GLFW_PRESS;
+
+        boolean pageUp = GLFW.glfwGetKey(
+            handle,
+            GLFW.GLFW_KEY_PAGE_UP
+        ) == GLFW.GLFW_PRESS;
+
+        boolean pageDown = GLFW.glfwGetKey(
+            handle,
+            GLFW.GLFW_KEY_PAGE_DOWN
+        ) == GLFW.GLFW_PRESS;
+
+        if (left && !lastLeft) {
+            handleClick(mouseX, mouseY, false);
+        }
+
+        if (right && !lastRight) {
+            handleClick(mouseX, mouseY, true);
+        }
+
+        if (dragging != null && left) {
+
+            dragging.x = mouseX - dragOffsetX;
+            dragging.y = mouseY - dragOffsetY;
+
+            dragging.x = Math.max(
+                0,
+                Math.min(
+                    width - PANEL_WIDTH,
+                    dragging.x
+                )
+            );
+
+            dragging.y = Math.max(
+                43,
+                Math.min(
+                    height - HEADER_HEIGHT,
+                    dragging.y
+                )
+            );
+        }
+
+        if (!left) {
+            dragging = null;
+        }
+
+        if (pageUp && !lastPageUp) {
+            scrollHovered(-1);
+        }
+
+        if (pageDown && !lastPageDown) {
+            scrollHovered(1);
+        }
+
+        lastLeft = left;
+        lastRight = right;
+        lastPageUp = pageUp;
+        lastPageDown = pageDown;
+    }
+
+    // ========================================
+    // CLICK HANDLING
+    // ========================================
+
+    private void handleClick(
+        int mx,
+        int my,
+        boolean rightClick
+    ) {
+
+        // Replay wave button
+
+        if (!rightClick
+            && inside(mx, my,
+                width - 84, 12, 72, 19)) {
+
+            openedAt = System.currentTimeMillis();
+            return;
+        }
+
+        if (expandedModule != null) {
+            handleSettingsClick(mx, my, rightClick);
+            return;
+        }
+
+        // Iterate backwards for topmost panels
+
+        for (int i = panels.size() - 1; i >= 0; i--) {
+
+            Panel panel = panels.get(i);
+
+            if (!isPanelVisible(i)) {
                 continue;
             }
 
-            final int index = i;
+            int x = panel.x;
+            int y = panel.y;
 
-            int x = px(i);
-            int y = py(i);
-            int w = panelWidth();
+            if (inside(
+                mx, my,
+                x, y,
+                PANEL_WIDTH,
+                HEADER_HEIGHT
+            )) {
 
-            // Category collapse button
+                if (rightClick) {
 
-            addRenderableWidget(
-                Button.builder(
-                    Component.literal(
-                        (collapsed[i] ? "+ " : "- ")
-                            + categories[i]
-                                .getDisplayName()
-                                .toUpperCase()
-                    ),
-                    b -> {
-                        collapsed[index] = !collapsed[index];
-                        rebuild();
-                    }
-                ).bounds(
-                    x + 3,
-                    y + 3,
-                    w - 6,
-                    19
-                ).build()
-            );
+                    panel.collapsed = !panel.collapsed;
 
-            if (collapsed[i]) {
+                } else {
+
+                    dragging = panel;
+
+                    dragOffsetX = mx - panel.x;
+                    dragOffsetY = my - panel.y;
+
+                    // Bring clicked panel to front
+
+                    panels.remove(i);
+                    panels.add(panel);
+                }
+
+                return;
+            }
+
+            if (panel.collapsed) {
+                continue;
+            }
+
+            if (!inside(
+                mx, my,
+                x, y + HEADER_HEIGHT,
+                PANEL_WIDTH,
+                PANEL_HEIGHT - HEADER_HEIGHT
+            )) {
                 continue;
             }
 
             List<Module> modules =
                 NovaClient.MODULES.getByCategory(
-                    categories[i]
+                    panel.category
                 );
 
-            int visible = 0;
+            int row = (
+                my - y - HEADER_HEIGHT - 5
+            ) / ROW_HEIGHT;
 
-            int maxRows = Math.max(
-                1,
-                (panelHeight() - 35) / 23
-            );
+            int index = panel.scroll + row;
 
-            for (Module module : modules) {
+            if (index < 0 || index >= modules.size()) {
+                return;
+            }
 
-                if (visible >= maxRows) {
-                    break;
-                }
+            Module module = modules.get(index);
 
-                int rowY = y + 29 + visible * 23;
-
-                // Module toggle
-
-                addRenderableWidget(
-                    Button.builder(
-                        Component.literal(
-                            (module.isEnabled()
-                                ? "● "
-                                : "○ ")
-                                + module.getName()
-                        ),
-                        b -> {
-                            module.toggle();
-
-                            NovaClient.CONFIG.save();
-
-                            rebuild();
-                        }
-                    ).bounds(
-                        x + 5,
-                        rowY,
-                        w - 10,
-                        20
-                    ).build()
-                );
-
-                // Mob ESP settings
+            if (rightClick) {
 
                 if (module.getName()
                     .equalsIgnoreCase("Mob ESP")) {
 
-                    addRenderableWidget(
-                        Button.builder(
-                            Component.literal("⚙"),
-                            b -> {
-                                settingsOpen = true;
-                                mobPage = 0;
-                                rebuild();
-                            }
-                        ).bounds(
-                            x + w - 28,
-                            rowY + 1,
-                            20,
-                            18
-                        ).build()
-                    );
+                    expandedModule = module;
+                    mobScroll = 0;
                 }
 
-                visible++;
+            } else {
+
+                module.toggle();
+                NovaClient.CONFIG.save();
+            }
+
+            return;
+        }
+    }
+
+    private void scrollHovered(int direction) {
+
+        if (expandedModule != null) {
+
+            int max = Math.max(
+                0,
+                MobEspSettings.MOBS.length - 12
+            );
+
+            mobScroll = Math.max(
+                0,
+                Math.min(max, mobScroll + direction * 3)
+            );
+
+            return;
+        }
+
+        for (Panel panel : panels) {
+
+            if (!inside(
+                mouseX, mouseY,
+                panel.x, panel.y,
+                PANEL_WIDTH, PANEL_HEIGHT
+            )) {
+                continue;
+            }
+
+            int count =
+                NovaClient.MODULES
+                    .getByCategory(panel.category)
+                    .size();
+
+            int max = Math.max(
+                0,
+                count - visibleRows()
+            );
+
+            panel.scroll = Math.max(
+                0,
+                Math.min(max, panel.scroll + direction)
+            );
+
+            return;
+        }
+    }
+
+    private int visibleRows() {
+        return (PANEL_HEIGHT - HEADER_HEIGHT - 9)
+            / ROW_HEIGHT;
+    }
+
+    // ========================================
+    // MOB ESP SETTINGS
+    // ========================================
+
+    private void handleSettingsClick(
+        int mx,
+        int my,
+        boolean rightClick
+    ) {
+
+        int w = Math.min(370, width - 20);
+        int h = 295;
+
+        int x = (width - w) / 2;
+        int y = Math.max(45, (height - h) / 2);
+
+        if (rightClick
+            || inside(mx, my, x + 8, y + 7, 55, 19)) {
+
+            expandedModule = null;
+            return;
+        }
+
+        if (inside(
+            mx, my,
+            x + w - 104,
+            y + 7,
+            43, 19
+        )) {
+
+            MobEspSettings.selectAll();
+            NovaClient.CONFIG.save();
+            return;
+        }
+
+        if (inside(
+            mx, my,
+            x + w - 56,
+            y + 7,
+            47, 19
+        )) {
+
+            MobEspSettings.selectNone();
+            NovaClient.CONFIG.save();
+            return;
+        }
+
+        if (inside(
+            mx, my,
+            x + 10,
+            y + h - 28,
+            60, 19
+        )) {
+
+            mobScroll = Math.max(
+                0,
+                mobScroll - 6
+            );
+
+            return;
+        }
+
+        if (inside(
+            mx, my,
+            x + w - 70,
+            y + h - 28,
+            60, 19
+        )) {
+
+            mobScroll = Math.min(
+                Math.max(
+                    0,
+                    MobEspSettings.MOBS.length - 12
+                ),
+                mobScroll + 6
+            );
+
+            return;
+        }
+
+        int cellW = (w - 30) / 2;
+
+        for (int i = 0; i < 12; i++) {
+
+            int index = mobScroll + i;
+
+            if (index >= MobEspSettings.MOBS.length) {
+                break;
+            }
+
+            int column = i % 2;
+            int row = i / 2;
+
+            int cellX =
+                x + 10 + column * (cellW + 10);
+
+            int cellY = y + 46 + row * 32;
+
+            if (inside(
+                mx, my,
+                cellX, cellY,
+                cellW, 26
+            )) {
+
+                MobEspSettings.toggle(
+                    MobEspSettings.MOBS[index]
+                );
+
+                NovaClient.CONFIG.save();
+                return;
             }
         }
     }
 
-    // =========================================
-    // MOB ESP SETTINGS
-    // =========================================
+    // ========================================
+    // DRAW HELPERS
+    // ========================================
 
-    private void buildMobSettings() {
+    private boolean inside(
+        int mx,
+        int my,
+        int x,
+        int y,
+        int w,
+        int h
+    ) {
 
-        int w = Math.min(420, width - 30);
+        return mx >= x
+            && mx < x + w
+            && my >= y
+            && my < y + h;
+    }
 
-        int left = (width - w) / 2;
+    private void rectangle(
+        GuiGraphics g,
+        int x,
+        int y,
+        int w,
+        int h,
+        int color
+    ) {
 
-        int top = Math.max(
-            45,
-            (height - 275) / 2
-        );
+        g.fill(x, y, x + w, y + h, color);
+    }
 
-        // Back button
+    private void outline(
+        GuiGraphics g,
+        int x,
+        int y,
+        int w,
+        int h,
+        int color
+    ) {
 
-        addRenderableWidget(
-            Button.builder(
-                Component.literal("< Back to Nebula"),
-                b -> {
-                    settingsOpen = false;
-                    rebuild();
-                }
-            ).bounds(
-                left + 10,
-                top + 10,
-                135,
-                21
-            ).build()
-        );
+        rectangle(g, x, y, w, 1, color);
+        rectangle(g, x, y + h - 1, w, 1, color);
+        rectangle(g, x, y, 1, h, color);
+        rectangle(g, x + w - 1, y, 1, h, color);
+    }
 
-        // Select all mobs
+    private void text(
+        GuiGraphics g,
+        String value,
+        int x,
+        int y,
+        int color
+    ) {
 
-        addRenderableWidget(
-            Button.builder(
-                Component.literal("All"),
-                b -> {
-                    MobEspSettings.selectAll();
-                    NovaClient.CONFIG.save();
-                    rebuild();
-                }
-            ).bounds(
-                left + w - 105,
-                top + 10,
-                43,
-                21
-            ).build()
-        );
-
-        // Deselect all mobs
-
-        addRenderableWidget(
-            Button.builder(
-                Component.literal("None"),
-                b -> {
-                    MobEspSettings.selectNone();
-                    NovaClient.CONFIG.save();
-                    rebuild();
-                }
-            ).bounds(
-                left + w - 57,
-                top + 10,
-                47,
-                21
-            ).build()
-        );
-
-        int perPage = 12;
-
-        int start = mobPage * perPage;
-
-        int end = Math.min(
-            MobEspSettings.MOBS.length,
-            start + perPage
-        );
-
-        int itemW = (w - 32) / 2;
-
-        for (int i = start; i < end; i++) {
-
-            final String id = MobEspSettings.MOBS[i];
-
-            int column = (i - start) % 2;
-            int row = (i - start) / 2;
-
-            addRenderableWidget(
-                Button.builder(
-                    Component.literal(
-                        (MobEspSettings.isSelected(id)
-                            ? "● "
-                            : "○ ")
-                            + id.replace('_', ' ')
-                    ),
-                    b -> {
-                        MobEspSettings.toggle(id);
-                        NovaClient.CONFIG.save();
-                        rebuild();
-                    }
-                ).bounds(
-                    left + 10
-                        + column * (itemW + 12),
-                    top + 46 + row * 28,
-                    itemW,
-                    23
-                ).build()
-            );
-        }
-
-        // Previous page
-
-        addRenderableWidget(
-            Button.builder(
-                Component.literal("<"),
-                b -> {
-                    if (mobPage > 0) {
-                        mobPage--;
-                        rebuild();
-                    }
-                }
-            ).bounds(
-                left + 10,
-                top + 224,
-                42,
-                20
-            ).build()
-        );
-
-        // Next page
-
-        addRenderableWidget(
-            Button.builder(
-                Component.literal(">"),
-                b -> {
-                    if ((mobPage + 1) * perPage
-                        < MobEspSettings.MOBS.length) {
-
-                        mobPage++;
-                        rebuild();
-                    }
-                }
-            ).bounds(
-                left + w - 52,
-                top + 224,
-                42,
-                20
-            ).build()
+        g.drawString(
+            font,
+            value,
+            x, y,
+            color,
+            false
         );
     }
 
-    // =========================================
-    // RENDER GUI
-    // =========================================
+    private boolean isPanelVisible(int index) {
+
+        long elapsed =
+            System.currentTimeMillis() - openedAt;
+
+        return elapsed >= index * WAVE_STEP;
+    }
+
+    // ========================================
+    // RENDER MAIN GUI
+    // ========================================
 
     @Override
     public void render(
-        GuiGraphics graphics,
-        int mouseX,
-        int mouseY,
+        GuiGraphics g,
+        int mx,
+        int my,
         float delta
     ) {
 
-        // Do not call renderBackground().
-        // Avoids Minecraft's double-blur crash.
+        // Intentionally no renderBackground().
+        // Prevents the double-blur crash.
 
-        graphics.fill(
-            0, 0, width, height, BG
+        rectangle(
+            g, 0, 0,
+            width, height,
+            BACKGROUND
         );
 
-        // Top bar
-
-        graphics.fill(
-            0, 0, width, 42,
-            0xED171023
+        rectangle(
+            g, 0, 0,
+            width, 40,
+            0xEE100B1D
         );
 
-        graphics.fill(
-            0, 40, width, 42,
+        rectangle(
+            g, 0, 39,
+            width, 1,
             PURPLE
         );
 
-        graphics.drawString(
-            font,
-            "✦ NOVA NEBULA",
-            14,
-            13,
+        text(
+            g,
+            "NOVA NEBULA",
+            13, 9,
             PURPLE
         );
 
-        graphics.drawString(
-            font,
+        text(
+            g,
             "FABRIC 1.21.11",
-            14,
-            27,
+            13, 23,
             MUTED
         );
 
-        if (settingsOpen) {
+        drawSmallButton(
+            g,
+            width - 84,
+            12,
+            72,
+            19,
+            "REPLAY",
+            inside(
+                mx, my,
+                width - 84, 12, 72, 19
+            )
+        );
 
-            int w = Math.min(
-                420,
-                width - 30
-            );
+        for (int i = 0; i < panels.size(); i++) {
 
-            int x = (width - w) / 2;
-
-            int y = Math.max(
-                45,
-                (height - 275) / 2
-            );
-
-            graphics.fill(
-                x - 1,
-                y - 1,
-                x + w + 1,
-                y + 259,
-                PANEL_BORDER
-            );
-
-            graphics.fill(
-                x,
-                y,
-                x + w,
-                y + 258,
-                PANEL
-            );
-
-            graphics.drawString(
-                font,
-                "MOB ESP TARGETS",
-                x + 11,
-                y + 37,
-                PURPLE
-            );
-
-            graphics.drawCenteredString(
-                font,
-                "Page " + (mobPage + 1)
-                    + "/"
-                    + ((MobEspSettings.MOBS.length + 11)
-                        / 12),
-                width / 2,
-                y + 229,
-                WHITE
-            );
-
-        } else {
-
-            long elapsed =
-                System.currentTimeMillis() - openedAt;
-
-            for (int i = 0;
-                 i < Category.values().length;
-                 i++) {
-
-                double progress = Math.min(
-                    1.0,
-                    Math.max(
-                        0.0,
-                        (elapsed - i * WAVE_STEP_MS)
-                            / (double) WAVE_DURATION_MS
-                    )
-                );
-
-                if (progress <= 0) {
-                    continue;
-                }
-
-                double eased =
-                    1 - Math.pow(1 - progress, 3);
-
-                int slide = (int) (
-                    (1 - eased) * 38
-                );
-
-                int x = px(i);
-                int y = py(i) + slide;
-                int w = panelWidth();
-
-                int h = collapsed[i]
-                    ? 27
-                    : panelHeight();
-
-                // Panel border
-
-                graphics.fill(
-                    x - 1,
-                    y - 1,
-                    x + w + 1,
-                    y + h + 1,
-                    PANEL_BORDER
-                );
-
-                // Panel background
-
-                graphics.fill(
-                    x,
-                    y,
-                    x + w,
-                    y + h,
-                    PANEL
-                );
-
-                // Purple category header
-
-                graphics.fill(
-                    x,
-                    y,
-                    x + w,
-                    y + 26,
-                    ACTIVE
-                );
+            if (!isPanelVisible(i)) {
+                continue;
             }
+
+            drawPanel(g, panels.get(i), i, mx, my);
         }
 
-        graphics.drawString(
-            font,
-            "RIGHT SHIFT  •  NOVA CLIENT",
-            12,
+        if (expandedModule != null) {
+            drawMobSettings(g, mx, my);
+        }
+
+        text(
+            g,
+            "LMB Toggle  |  RMB Settings  |  Drag Headers",
+            10,
             height - 15,
             MUTED
         );
 
-        super.render(
-            graphics,
-            mouseX,
-            mouseY,
-            delta
+        // No vanilla buttons to draw.
+    }
+
+    // ========================================
+    // DRAW CATEGORY PANEL
+    // ========================================
+
+    private void drawPanel(
+        GuiGraphics g,
+        Panel panel,
+        int index,
+        int mx,
+        int my
+    ) {
+
+        long elapsed =
+            System.currentTimeMillis() - openedAt;
+
+        double progress = Math.max(
+            0,
+            Math.min(
+                1,
+                (elapsed - index * WAVE_STEP)
+                    / (double) WAVE_LENGTH
+            )
+        );
+
+        double eased =
+            1 - Math.pow(1 - progress, 3);
+
+        int waveOffset =
+            (int) ((1 - eased) * 35);
+
+        // Move entire panel during animation,
+        // not just the background.
+
+        g.pose().pushMatrix();
+
+        g.pose().translate(
+            0,
+            waveOffset
+        );
+
+        int x = panel.x;
+        int y = panel.y;
+
+        int h = panel.collapsed
+            ? HEADER_HEIGHT
+            : PANEL_HEIGHT;
+
+        // Soft shadow
+
+        rectangle(
+            g,
+            x + 3, y + 4,
+            PANEL_WIDTH, h,
+            0x55000000
+        );
+
+        rectangle(
+            g,
+            x, y,
+            PANEL_WIDTH, h,
+            PANEL_BG
+        );
+
+        outline(
+            g,
+            x, y,
+            PANEL_WIDTH, h,
+            PANEL_BORDER
+        );
+
+        // Category header
+
+        rectangle(
+            g,
+            x + 1, y + 1,
+            PANEL_WIDTH - 2,
+            HEADER_HEIGHT - 2,
+            HEADER
+        );
+
+        rectangle(
+            g,
+            x + 1, y + 1,
+            PANEL_WIDTH - 2,
+            2,
+            HEADER_TOP
+        );
+
+        text(
+            g,
+            panel.category.getDisplayName()
+                .toUpperCase(),
+            x + 8,
+            y + 9,
+            WHITE
+        );
+
+        text(
+            g,
+            panel.collapsed ? "+" : "-",
+            x + PANEL_WIDTH - 14,
+            y + 9,
+            PURPLE
+        );
+
+        if (!panel.collapsed) {
+
+            List<Module> modules =
+                NovaClient.MODULES.getByCategory(
+                    panel.category
+                );
+
+            int rows = visibleRows();
+
+            for (int row = 0; row < rows; row++) {
+
+                int moduleIndex =
+                    panel.scroll + row;
+
+                if (moduleIndex >= modules.size()) {
+                    break;
+                }
+
+                Module module =
+                    modules.get(moduleIndex);
+
+                int ry =
+                    y + HEADER_HEIGHT + 5
+                    + row * ROW_HEIGHT;
+
+                boolean hover = inside(
+                    mx, my,
+                    x + 3, ry,
+                    PANEL_WIDTH - 6,
+                    ROW_HEIGHT - 1
+                );
+
+                int bg = module.isEnabled()
+                    ? ROW_ACTIVE
+                    : hover ? ROW_HOVER : ROW;
+
+                rectangle(
+                    g,
+                    x + 3, ry,
+                    PANEL_WIDTH - 6,
+                    ROW_HEIGHT - 1,
+                    bg
+                );
+
+                if (module.isEnabled()) {
+
+                    rectangle(
+                        g,
+                        x + 3, ry,
+                        2,
+                        ROW_HEIGHT - 1,
+                        PURPLE
+                    );
+                }
+
+                String name = module.getName();
+
+                int maxTextWidth =
+                    PANEL_WIDTH - 28;
+
+                if (font.width(name) > maxTextWidth) {
+
+                    while (name.length() > 1
+                        && font.width(name + "..")
+                            > maxTextWidth) {
+
+                        name = name.substring(
+                            0,
+                            name.length() - 1
+                        );
+                    }
+
+                    name += "..";
+                }
+
+                text(
+                    g,
+                    name,
+                    x + 9,
+                    ry + 5,
+                    module.isEnabled()
+                        ? WHITE
+                        : MUTED
+                );
+
+                // Compact status indicator
+
+                rectangle(
+                    g,
+                    x + PANEL_WIDTH - 13,
+                    ry + 6,
+                    5, 5,
+                    module.isEnabled()
+                        ? GREEN
+                        : 0xFF484052
+                );
+            }
+
+            // Bottom module count
+
+            rectangle(
+                g,
+                x + 1,
+                y + PANEL_HEIGHT - 18,
+                PANEL_WIDTH - 2,
+                17,
+                0xFF1C142B
+            );
+
+            text(
+                g,
+                modules.size() + " MODULES",
+                x + 8,
+                y + PANEL_HEIGHT - 14,
+                MUTED
+            );
+
+            if (modules.size() > rows) {
+
+                text(
+                    g,
+                    "^ v",
+                    x + PANEL_WIDTH - 29,
+                    y + PANEL_HEIGHT - 14,
+                    PURPLE
+                );
+            }
+        }
+
+        g.pose().popMatrix();
+    }
+
+    // ========================================
+    // SMALL BUTTON DRAWING
+    // ========================================
+
+    private void drawSmallButton(
+        GuiGraphics g,
+        int x,
+        int y,
+        int w,
+        int h,
+        String label,
+        boolean hover
+    ) {
+
+        rectangle(
+            g,
+            x, y, w, h,
+            hover ? ROW_HOVER : ROW
+        );
+
+        outline(
+            g,
+            x, y, w, h,
+            PANEL_BORDER
+        );
+
+        g.drawCenteredString(
+            font,
+            label,
+            x + w / 2,
+            y + (h - 8) / 2,
+            WHITE
         );
     }
+
+    // ========================================
+    // MOB ESP SETTINGS WINDOW
+    // ========================================
+
+    private void drawMobSettings(
+        GuiGraphics g,
+        int mx,
+        int my
+    ) {
+
+        int w = Math.min(370, width - 20);
+        int h = 295;
+
+        int x = (width - w) / 2;
+        int y = Math.max(
+            45,
+            (height - h) / 2
+        );
+
+        rectangle(
+            g,
+            0, 40,
+            width,
+            height - 40,
+            0xB0000000
+        );
+
+        rectangle(
+            g,
+            x, y,
+            w, h,
+            PANEL_BG
+        );
+
+        outline(
+            g,
+            x, y,
+            w, h,
+            PANEL_BORDER
+        );
+
+        rectangle(
+            g,
+            x + 1, y + 1,
+            w - 2, 32,
+            HEADER
+        );
+
+        text(
+            g,
+            "MOB ESP SETTINGS",
+            x + 10,
+            y + 36,
+            PURPLE
+        );
+
+        drawSmallButton(
+            g,
+            x + 8, y + 7,
+            55, 19,
+            "BACK",
+            false
+        );
+
+        drawSmallButton(
+            g,
+            x + w - 104,
+            y + 7,
+            43, 19,
+            "ALL",
+            false
+        );
+
+        drawSmallButton(
+            g,
+            x + w - 56,
+            y + 7,
+            47, 19,
+            "NONE",
+            false
+        );
+
+        int cellW = (w - 30) / 2;
+
+        for (int i = 0; i < 12; i++) {
+
+            int index = mobScroll + i;
+
+            if (index >= MobEspSettings.MOBS.length) {
+                break;
+            }
+
+            String id =
+                MobEspSettings.MOBS[index];
+
+            int column = i % 2;
+            int row = i / 2;
+
+            int cx =
+                x + 10
+                + column * (cellW + 10);
+
+            int cy =
+                y + 46
+                + row * 32;
+
+            boolean selected =
+                MobEspSettings.isSelected(id);
+
+            rectangle(
+                g,
+                cx, cy,
+                cellW, 26,
+                selected
+                    ? ROW_ACTIVE
+                    : ROW
+            );
+
+            outline(
+                g,
+                cx, cy,
+                cellW, 26,
+                selected
+                    ? PURPLE
+                    : PANEL_BORDER
+            );
+
+            String label =
+                id.replace('_', ' ');
+
+            text(
+                g,
+                (selected ? "[x] " : "[ ] ")
+                    + label,
+                cx + 6,
+                cy + 9,
+                selected
+                    ? WHITE
+                    : MUTED
+            );
+        }
+
+        drawSmallButton(
+            g,
+            x + 10,
+            y + h - 28,
+            60, 19,
+            "PREV",
+            false
+        );
+
+        drawSmallButton(
+            g,
+            x + w - 70,
+            y + h - 28,
+            60, 19,
+            "NEXT",
+            false
+        );
+
+        g.drawCenteredString(
+            font,
+            "Selected: "
+                + MobEspSettings.getSelected().size(),
+            x + w / 2,
+            y + h - 22,
+            PURPLE
+        );
+    }
+
+    // ========================================
+    // SCREEN SETTINGS
+    // ========================================
 
     @Override
     public boolean isPauseScreen() {
