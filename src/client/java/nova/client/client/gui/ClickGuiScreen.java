@@ -1,34 +1,33 @@
 
-package nova.client.gui;
+package nova.client.client.gui;
 
 // @name: ClickGuiScreen
-// @type: Java Class
-// @location: src/client/java/nova/client/gui/
+// @type: Client GUI Screen
+// @location: src/client/java/nova/client/client/gui/ClickGuiScreen.java
 
-import nova.client.NovaClient;
-import nova.client.module.Category;
-import nova.client.module.Module;
+import java.util.List;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
-import java.util.List;
+import nova.client.client.NovaClient;
+import nova.client.client.module.Category;
+import nova.client.client.module.Module;
 
 public class ClickGuiScreen extends Screen {
-
-    private Category selected = Category.RENDER;
-    private int page = 0;
 
     private static final int WIDTH = 440;
     private static final int HEIGHT = 290;
 
-    private static final int BG = 0xFF101018;
+    private static final int BACKGROUND = 0xFF101018;
     private static final int PANEL = 0xFF1B1B29;
     private static final int ACCENT = 0xFF9667FF;
-    private static final int WHITE = 0xFFFFFFFF;
-    private static final int GRAY = 0xFF9999AA;
+    private static final int TEXT = 0xFFFFFFFF;
+
+    private Category selected = Category.COMBAT;
+    private int page = 0;
 
     public ClickGuiScreen() {
         super(Component.literal("Nova Client"));
@@ -40,18 +39,24 @@ public class ClickGuiScreen extends Screen {
     }
 
     private void rebuild() {
+
         clearWidgets();
 
-        int x = (width - WIDTH) / 2;
-        int y = (height - HEIGHT) / 2;
+        int left = (width - WIDTH) / 2;
+        int top = (height - HEIGHT) / 2;
 
-        int index = 0;
+        Category[] categories = Category.values();
 
-        for (Category category : Category.values()) {
+        for (int i = 0; i < categories.length; i++) {
+
+            Category category = categories[i];
+
+            int y = top + 48 + i * 35;
 
             addRenderableWidget(
                 Button.builder(
                     Component.literal(
+                        (selected == category ? "> " : "") +
                         category.getDisplayName()
                     ),
                     button -> {
@@ -59,82 +64,67 @@ public class ClickGuiScreen extends Screen {
                         page = 0;
                         rebuild();
                     }
-                ).bounds(
-                    x + 12,
-                    y + 48 + index * 32,
-                    115,
-                    25
-                ).build()
+                )
+                .bounds(left + 15, y, 125, 27)
+                .build()
             );
-
-            index++;
         }
 
         List<Module> modules =
-            NovaClient.MODULES.getByCategory(selected);
+                NovaClient.MODULES.getByCategory(selected);
 
-        int pageSize = 6;
-        int start = page * pageSize;
-        int end = Math.min(
-            start + pageSize,
-            modules.size()
-        );
+        int perPage = 6;
+        int start = page * perPage;
+        int end = Math.min(start + perPage, modules.size());
 
         for (int i = start; i < end; i++) {
 
             Module module = modules.get(i);
-            int row = i - start;
+            int y = top + 48 + (i - start) * 35;
 
             addRenderableWidget(
                 Button.builder(
-                    getModuleLabel(module),
+                    Component.literal(
+                        module.getName() +
+                        (module.isEnabled() ? " [ON]" : " [OFF]")
+                    ),
                     button -> {
                         module.toggle();
                         NovaClient.CONFIG.save();
                         rebuild();
                     }
-                ).bounds(
-                    x + 145,
-                    y + 48 + row * 32,
-                    280,
-                    25
-                ).build()
+                )
+                .bounds(left + 160, y, 260, 27)
+                .build()
             );
         }
 
-        if (page > 0) {
-            addRenderableWidget(
-                Button.builder(
-                    Component.literal("Previous"),
-                    button -> {
+        addRenderableWidget(
+            Button.builder(
+                Component.literal("< Previous"),
+                button -> {
+                    if (page > 0) {
                         page--;
                         rebuild();
                     }
-                ).bounds(
-                    x + 145, y + 252, 110, 22
-                ).build()
-            );
-        }
+                }
+            )
+            .bounds(left + 160, top + 255, 110, 22)
+            .build()
+        );
 
-        if (end < modules.size()) {
-            addRenderableWidget(
-                Button.builder(
-                    Component.literal("Next"),
-                    button -> {
+        addRenderableWidget(
+            Button.builder(
+                Component.literal("Next >"),
+                button -> {
+                    if ((page + 1) * perPage < modules.size()) {
                         page++;
                         rebuild();
                     }
-                ).bounds(
-                    x + 315, y + 252, 110, 22
-                ).build()
-            );
-        }
-    }
-
-    private Component getModuleLabel(Module module) {
-        return Component.literal(
-            module.getName() +
-            (module.isEnabled() ? "  [ON]" : "  [OFF]")
+                }
+            )
+            .bounds(left + 310, top + 255, 110, 22)
+            .build()
         );
     }
 
@@ -143,71 +133,55 @@ public class ClickGuiScreen extends Screen {
             GuiGraphics graphics,
             int mouseX,
             int mouseY,
-            float delta) {
+            float delta
+    ) {
 
-        int x = (width - WIDTH) / 2;
-        int y = (height - HEIGHT) / 2;
+        renderBackground(graphics, mouseX, mouseY, delta);
+
+        int left = (width - WIDTH) / 2;
+        int top = (height - HEIGHT) / 2;
 
         graphics.fill(
-            x, y,
-            x + WIDTH, y + HEIGHT,
-            BG
+            left,
+            top,
+            left + WIDTH,
+            top + HEIGHT,
+            BACKGROUND
         );
 
         graphics.fill(
-            x, y,
-            x + WIDTH, y + 4,
-            ACCENT
-        );
-
-        graphics.fill(
-            x + 6, y + 40,
-            x + 135, y + 278,
+            left,
+            top,
+            left + WIDTH,
+            top + 34,
             PANEL
+        );
+
+        graphics.fill(
+            left,
+            top + 33,
+            left + WIDTH,
+            top + 35,
+            ACCENT
         );
 
         graphics.drawString(
             font,
             "NOVA CLIENT",
-            x + 12,
-            y + 17,
-            ACCENT,
-            true
-        );
-
-        graphics.drawString(
-            font,
-            "v1.0",
-            x + 390,
-            y + 17,
-            GRAY,
-            false
+            left + 15,
+            top + 12,
+            TEXT
         );
 
         graphics.drawString(
             font,
             selected.getDisplayName(),
-            x + 145,
-            y + 25,
-            WHITE,
-            true
+            left + 160,
+            top + 12,
+            ACCENT
         );
 
-        graphics.drawString(
-            font,
-            "RIGHT SHIFT | ESC TO CLOSE",
-            x + 145,
-            y + 280,
-            GRAY,
-            false
-        );
-
-        super.render(
-            graphics,
-            mouseX,
-            mouseY,
-            delta
-        );
+        super.render(graphics, mouseX, mouseY, delta);
     }
 
     @Override
@@ -215,4 +189,3 @@ public class ClickGuiScreen extends Screen {
         return false;
     }
 }
-
