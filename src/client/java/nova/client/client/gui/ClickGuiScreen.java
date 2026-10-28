@@ -235,11 +235,13 @@ public class ClickGuiScreen extends Screen {
         boolean rightClick
     ) {
 
-        // Replay wave button
+        // Replay wave animation
 
         if (!rightClick
-            && inside(mx, my,
-                width - 84, 12, 72, 19)) {
+            && inside(
+                mx, my,
+                width - 84, 12, 72, 19
+            )) {
 
             openedAt = System.currentTimeMillis();
             return;
@@ -250,7 +252,7 @@ public class ClickGuiScreen extends Screen {
             return;
         }
 
-        // Iterate backwards for topmost panels
+        // Check panels from front to back
 
         for (int i = panels.size() - 1; i >= 0; i--) {
 
@@ -262,6 +264,8 @@ public class ClickGuiScreen extends Screen {
 
             int x = panel.x;
             int y = panel.y;
+
+            // Category header
 
             if (inside(
                 mx, my,
@@ -281,7 +285,7 @@ public class ClickGuiScreen extends Screen {
                     dragOffsetX = mx - panel.x;
                     dragOffsetY = my - panel.y;
 
-                    // Bring clicked panel to front
+                    // Bring selected panel to front
 
                     panels.remove(i);
                     panels.add(panel);
@@ -296,7 +300,8 @@ public class ClickGuiScreen extends Screen {
 
             if (!inside(
                 mx, my,
-                x, y + HEADER_HEIGHT,
+                x,
+                y + HEADER_HEIGHT,
                 PANEL_WIDTH,
                 PANEL_HEIGHT - HEADER_HEIGHT
             )) {
@@ -308,9 +313,18 @@ public class ClickGuiScreen extends Screen {
                     panel.category
                 );
 
-            int row = (
-                my - y - HEADER_HEIGHT - 5
-            ) / ROW_HEIGHT;
+            int relativeY =
+                my - y - HEADER_HEIGHT - 5;
+
+            if (relativeY < 0) {
+                return;
+            }
+
+            int row = relativeY / ROW_HEIGHT;
+
+            if (row >= visibleRows()) {
+                return;
+            }
 
             int index = panel.scroll + row;
 
@@ -322,6 +336,8 @@ public class ClickGuiScreen extends Screen {
 
             if (rightClick) {
 
+                // Open Mob ESP settings
+
                 if (module.getName()
                     .equalsIgnoreCase("Mob ESP")) {
 
@@ -331,13 +347,21 @@ public class ClickGuiScreen extends Screen {
 
             } else {
 
-                module.toggle();
+                // Toggle module and show notifications
+
+                NovaClient.MODULES.toggleModule(module);
+
+                // Save enabled states
                 NovaClient.CONFIG.save();
             }
 
             return;
         }
     }
+
+    // ========================================
+    // SCROLLING
+    // ========================================
 
     private void scrollHovered(int direction) {
 
@@ -350,13 +374,18 @@ public class ClickGuiScreen extends Screen {
 
             mobScroll = Math.max(
                 0,
-                Math.min(max, mobScroll + direction * 3)
+                Math.min(
+                    max,
+                    mobScroll + direction * 3
+                )
             );
 
             return;
         }
 
-        for (Panel panel : panels) {
+        for (int i = panels.size() - 1; i >= 0; i--) {
+
+            Panel panel = panels.get(i);
 
             if (!inside(
                 mouseX, mouseY,
@@ -378,7 +407,10 @@ public class ClickGuiScreen extends Screen {
 
             panel.scroll = Math.max(
                 0,
-                Math.min(max, panel.scroll + direction)
+                Math.min(
+                    max,
+                    panel.scroll + direction
+                )
             );
 
             return;
@@ -404,10 +436,17 @@ public class ClickGuiScreen extends Screen {
         int h = 295;
 
         int x = (width - w) / 2;
-        int y = Math.max(45, (height - h) / 2);
+        int y = Math.max(
+            45,
+            (height - h) / 2
+        );
 
         if (rightClick
-            || inside(mx, my, x + 8, y + 7, 55, 19)) {
+            || inside(
+                mx, my,
+                x + 8, y + 7,
+                55, 19
+            )) {
 
             expandedModule = null;
             return;
@@ -486,7 +525,8 @@ public class ClickGuiScreen extends Screen {
             int cellX =
                 x + 10 + column * (cellW + 10);
 
-            int cellY = y + 46 + row * 32;
+            int cellY =
+                y + 46 + row * 32;
 
             if (inside(
                 mx, my,
@@ -532,7 +572,11 @@ public class ClickGuiScreen extends Screen {
         int color
     ) {
 
-        g.fill(x, y, x + w, y + h, color);
+        g.fill(
+            x, y,
+            x + w, y + h,
+            color
+        );
     }
 
     private void outline(
@@ -587,23 +631,26 @@ public class ClickGuiScreen extends Screen {
         float delta
     ) {
 
-        // Intentionally no renderBackground().
-        // Prevents the double-blur crash.
+        // Do not call renderBackground().
+        // Prevents Minecraft's double-blur crash.
 
         rectangle(
-            g, 0, 0,
+            g,
+            0, 0,
             width, height,
             BACKGROUND
         );
 
         rectangle(
-            g, 0, 0,
+            g,
+            0, 0,
             width, 40,
             0xEE100B1D
         );
 
         rectangle(
-            g, 0, 39,
+            g,
+            0, 39,
             width, 1,
             PURPLE
         );
@@ -641,7 +688,13 @@ public class ClickGuiScreen extends Screen {
                 continue;
             }
 
-            drawPanel(g, panels.get(i), i, mx, my);
+            drawPanel(
+                g,
+                panels.get(i),
+                i,
+                mx,
+                my
+            );
         }
 
         if (expandedModule != null) {
@@ -655,8 +708,6 @@ public class ClickGuiScreen extends Screen {
             height - 15,
             MUTED
         );
-
-        // No vanilla buttons to draw.
     }
 
     // ========================================
@@ -689,9 +740,6 @@ public class ClickGuiScreen extends Screen {
         int waveOffset =
             (int) ((1 - eased) * 35);
 
-        // Move entire panel during animation,
-        // not just the background.
-
         g.pose().pushMatrix();
 
         g.pose().translate(
@@ -706,14 +754,18 @@ public class ClickGuiScreen extends Screen {
             ? HEADER_HEIGHT
             : PANEL_HEIGHT;
 
-        // Soft shadow
+        // Panel shadow
 
         rectangle(
             g,
-            x + 3, y + 4,
-            PANEL_WIDTH, h,
+            x + 3,
+            y + 4,
+            PANEL_WIDTH,
+            h,
             0x55000000
         );
+
+        // Panel background
 
         rectangle(
             g,
@@ -729,11 +781,12 @@ public class ClickGuiScreen extends Screen {
             PANEL_BORDER
         );
 
-        // Category header
+        // Header
 
         rectangle(
             g,
-            x + 1, y + 1,
+            x + 1,
+            y + 1,
             PANEL_WIDTH - 2,
             HEADER_HEIGHT - 2,
             HEADER
@@ -741,7 +794,8 @@ public class ClickGuiScreen extends Screen {
 
         rectangle(
             g,
-            x + 1, y + 1,
+            x + 1,
+            y + 1,
             PANEL_WIDTH - 2,
             2,
             HEADER_TOP
@@ -849,7 +903,7 @@ public class ClickGuiScreen extends Screen {
                         : MUTED
                 );
 
-                // Compact status indicator
+                // Enabled indicator
 
                 rectangle(
                     g,
@@ -862,7 +916,7 @@ public class ClickGuiScreen extends Screen {
                 );
             }
 
-            // Bottom module count
+            // Footer
 
             rectangle(
                 g,
@@ -912,13 +966,15 @@ public class ClickGuiScreen extends Screen {
 
         rectangle(
             g,
-            x, y, w, h,
+            x, y,
+            w, h,
             hover ? ROW_HOVER : ROW
         );
 
         outline(
             g,
-            x, y, w, h,
+            x, y,
+            w, h,
             PANEL_BORDER
         );
 
@@ -950,6 +1006,8 @@ public class ClickGuiScreen extends Screen {
             (height - h) / 2
         );
 
+        // Darken background
+
         rectangle(
             g,
             0, 40,
@@ -957,6 +1015,8 @@ public class ClickGuiScreen extends Screen {
             height - 40,
             0xB0000000
         );
+
+        // Settings panel
 
         rectangle(
             g,
@@ -974,8 +1034,10 @@ public class ClickGuiScreen extends Screen {
 
         rectangle(
             g,
-            x + 1, y + 1,
-            w - 2, 32,
+            x + 1,
+            y + 1,
+            w - 2,
+            32,
             HEADER
         );
 
@@ -989,8 +1051,10 @@ public class ClickGuiScreen extends Screen {
 
         drawSmallButton(
             g,
-            x + 8, y + 7,
-            55, 19,
+            x + 8,
+            y + 7,
+            55,
+            19,
             "BACK",
             false
         );
@@ -999,7 +1063,8 @@ public class ClickGuiScreen extends Screen {
             g,
             x + w - 104,
             y + 7,
-            43, 19,
+            43,
+            19,
             "ALL",
             false
         );
@@ -1008,7 +1073,8 @@ public class ClickGuiScreen extends Screen {
             g,
             x + w - 56,
             y + 7,
-            47, 19,
+            47,
+            19,
             "NONE",
             false
         );
@@ -1077,7 +1143,8 @@ public class ClickGuiScreen extends Screen {
             g,
             x + 10,
             y + h - 28,
-            60, 19,
+            60,
+            19,
             "PREV",
             false
         );
@@ -1086,7 +1153,8 @@ public class ClickGuiScreen extends Screen {
             g,
             x + w - 70,
             y + h - 28,
-            60, 19,
+            60,
+            19,
             "NEXT",
             false
         );
