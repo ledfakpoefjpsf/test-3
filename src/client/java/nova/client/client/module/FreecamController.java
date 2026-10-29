@@ -51,7 +51,8 @@ public final class FreecamController {
 
         oldPerspective = mc.options.getCameraType();
 
-        Vec3 start = mc.gameRenderer.getMainCamera().getPosition();
+        // Minecraft 1.21.11 compatible camera start position.
+        Vec3 start = mc.player.getEyePosition();
 
         position = start;
         previousPosition = start;
@@ -222,27 +223,37 @@ public final class FreecamController {
     }
 
     private static float partialTick() {
-        double elapsed = (System.nanoTime() - lastTickTime) / 50_000_000.0D;
-        return (float) Math.max(0.0D, Math.min(1.0D, elapsed));
+        double elapsed =
+            (System.nanoTime() - lastTickTime) / 50_000_000.0D;
+
+        return (float) Math.max(
+            0.0D,
+            Math.min(1.0D, elapsed)
+        );
     }
 
     public static Vec3 getPosition() {
         float delta = partialTick();
 
         return new Vec3(
-            previousPosition.x + (position.x - previousPosition.x) * delta,
-            previousPosition.y + (position.y - previousPosition.y) * delta,
-            previousPosition.z + (position.z - previousPosition.z) * delta
+            previousPosition.x
+                + (position.x - previousPosition.x) * delta,
+            previousPosition.y
+                + (position.y - previousPosition.y) * delta,
+            previousPosition.z
+                + (position.z - previousPosition.z) * delta
         );
     }
 
     public static float getYaw() {
         float delta = partialTick();
+
         return previousYaw + (yaw - previousYaw) * delta;
     }
 
     public static float getPitch() {
         float delta = partialTick();
+
         return previousPitch + (pitch - previousPitch) * delta;
     }
 }
