@@ -1,19 +1,19 @@
 
-package nova.client.mixin;
+package nova.client.client.mixin;
 
 // @name: LightTextureMixin
 // @type: Client Mixin
-// @location: src/client/java/nova/client/mixin/LightTextureMixin.java
+// @location: src/client/java/nova/client/client/mixin/LightTextureMixin.java
 
-import net.minecraft.client.OptionInstance;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+
+import net.minecraft.client.renderer.LightTexture;
+
 import nova.client.client.NovaClient;
 import nova.client.client.module.Module;
 
-import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-
-import net.minecraft.client.renderer.LightTexture;
 
 @Mixin(LightTexture.class)
 public abstract class LightTextureMixin {
