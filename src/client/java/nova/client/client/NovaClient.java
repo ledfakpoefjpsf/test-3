@@ -7,6 +7,7 @@ package nova.client.client;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
@@ -43,10 +44,14 @@ public final class NovaClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             MODULES.tick();
-            EspRenderer.tick(client);
             handleMacro(client);
             handleGuiKey(client);
 
+        });
+
+        // ESP now updates during world rendering.
+        WorldRenderEvents.END_MAIN.register(context -> {
+            EspRenderer.render(Minecraft.getInstance(), context);
         });
 
         Runtime.getRuntime().addShutdownHook(
