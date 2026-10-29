@@ -5,8 +5,7 @@
   "client": [
     "LightTextureMixin",
     "CameraMixin",
-    "MouseHandlerMixin",
-    "XrayBlockStateMixin"
+    "MouseHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
