@@ -51,14 +51,7 @@ public final class EspRenderer {
             return;
         }
 
-        // CHANGED:
-        // Tracers now start at the center of your body,
-        // rather than your eyes.
-        Vec3 tracerStart = mc.player.position().add(
-            0.0,
-            mc.player.getBbHeight() * 0.5,
-            0.0
-        );
+        Vec3 tracerStart = getTracerStart(mc);
 
         for (Entity entity : mc.level.entitiesForRendering()) {
 
@@ -83,7 +76,7 @@ public final class EspRenderer {
 
             int color = isPlayer ? CYAN : PURPLE;
 
-            // Nova Competitive corner brackets
+            // Keep Nova Competitive corner brackets
             drawCorners(box, color);
 
             // Entity names
@@ -118,7 +111,6 @@ public final class EspRenderer {
                 double bottom = box.minY;
                 double top = box.maxY;
 
-                // Health bar background
                 Gizmos.line(
                     new Vec3(barX, bottom, barZ),
                     new Vec3(barX, top, barZ),
@@ -126,7 +118,6 @@ public final class EspRenderer {
                     6.0F
                 ).setAlwaysOnTop();
 
-                // Health bar fill
                 if (percent > 0.0F) {
                     Gizmos.line(
                         new Vec3(barX, bottom, barZ),
@@ -140,7 +131,6 @@ public final class EspRenderer {
                     ).setAlwaysOnTop();
                 }
 
-                // HP text
                 Vec3 hpPosition = new Vec3(
                     box.getCenter().x,
                     box.maxY + (
@@ -159,7 +149,7 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
-            // Adjustable tracer line
+            // Tracer with adjusted origin
             if (EspOverlaySettings.showTracers()) {
 
                 Vec3 target = box.getCenter();
@@ -172,6 +162,36 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
         }
+    }
+
+    /**
+     * Choose the tracer starting point based on
+     * the current camera perspective.
+     */
+    private static Vec3 getTracerStart(Minecraft mc) {
+
+        if (mc.options.getCameraType().isFirstPerson()) {
+
+            // Start below the camera, rather than at eye level.
+            // This is a world-space approximation of a
+            // lower-screen tracer origin.
+            Vec3 cameraPos =
+                mc.gameRenderer.getMainCamera().getPosition();
+
+            Vec3 look =
+                mc.gameRenderer.getMainCamera().getLookVector();
+
+            return cameraPos
+                .add(0.0, -0.65, 0.0)
+                .add(look.scale(0.30));
+        }
+
+        // Third-person: start at player waist height.
+        return mc.player.position().add(
+            0.0,
+            mc.player.getBbHeight() * 0.5,
+            0.0
+        );
     }
 
     private static void drawCorners(AABB box, int color) {
@@ -198,7 +218,6 @@ public final class EspRenderer {
             0.25
         );
 
-        // Draw all eight 3D corners
         for (int xi = 0; xi < 2; xi++) {
             for (int yi = 0; yi < 2; yi++) {
                 for (int zi = 0; zi < 2; zi++) {
