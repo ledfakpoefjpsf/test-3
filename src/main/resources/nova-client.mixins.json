@@ -1,16 +1,11 @@
 
 {
   "required": true,
-  "package": "nova.client.client.mixin",
+  "package": "nova.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": [
-    "EspTickMixin",
-    "LightTextureMixin"
-  ],
+  "mixins": [],
+  "client": [],
   "injectors": {
     "defaultRequire": 1
-  },
-  "overwrites": {
-    "requireAnnotations": true
   }
 }
