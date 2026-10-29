@@ -20,6 +20,10 @@ public final class MovementModules {
 
     private MovementModules() {}
 
+    // ========================================
+    // SETTINGS STORAGE
+    // ========================================
+
     private static Path file() {
         return Minecraft.getInstance()
             .gameDirectory.toPath()
@@ -34,35 +38,52 @@ public final class MovementModules {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[Nova Movement] Load: " + e);
+            System.err.println(
+                "[Nova Movement] Load: " + e
+            );
         }
     }
 
     public static void save() {
         try {
             Files.createDirectories(file().getParent());
+
             try (var output = Files.newOutputStream(file())) {
-                SETTINGS.store(output, "Nova Movement Settings");
+                SETTINGS.store(
+                    output,
+                    "Nova Movement Settings"
+                );
             }
         } catch (Exception e) {
-            System.err.println("[Nova Movement] Save: " + e);
+            System.err.println(
+                "[Nova Movement] Save: " + e
+            );
         }
     }
 
     public static String get(
-        String module, String key, String fallback
+        String module,
+        String key,
+        String fallback
     ) {
         return SETTINGS.getProperty(
-            module + "." + key, fallback
+            module + "." + key,
+            fallback
         );
     }
 
     public static double number(
-        String module, String key, double fallback
+        String module,
+        String key,
+        double fallback
     ) {
         try {
             return Double.parseDouble(
-                get(module, key, Double.toString(fallback))
+                get(
+                    module,
+                    key,
+                    Double.toString(fallback)
+                )
             );
         } catch (NumberFormatException e) {
             return fallback;
@@ -70,47 +91,80 @@ public final class MovementModules {
     }
 
     public static boolean bool(
-        String module, String key, boolean fallback
+        String module,
+        String key,
+        boolean fallback
     ) {
         return Boolean.parseBoolean(
-            get(module, key, Boolean.toString(fallback))
+            get(
+                module,
+                key,
+                Boolean.toString(fallback)
+            )
         );
     }
 
     public static void set(
-        String module, String key, String value
+        String module,
+        String key,
+        String value
     ) {
-        SETTINGS.setProperty(module + "." + key, value);
+        SETTINGS.setProperty(
+            module + "." + key,
+            value
+        );
+
         save();
     }
 
+    // ========================================
+    // MOVEMENT HELPERS
+    // ========================================
+
     private static Minecraft ready() {
         Minecraft mc = Minecraft.getInstance();
+
         return mc.player != null
             && mc.level != null
             && mc.screen == null
             ? mc : null;
     }
 
+    // FIXED: Minecraft 1.21.11 Vec2 uses
+    // lengthSquared(), not lengthSqr().
     private static boolean moving(Minecraft mc) {
-        return mc.player.input != null
-            && mc.player.input.getMoveVector().lengthSqr()
-                > 0.001;
+        if (mc.player == null
+            || mc.player.input == null) {
+            return false;
+        }
+
+        var movement =
+            mc.player.input.getMoveVector();
+
+        return movement.lengthSquared() > 0.001F;
     }
 
     private static void horizontal(
-        Minecraft mc, double multiplier
+        Minecraft mc,
+        double multiplier
     ) {
-        Vec3 velocity = mc.player.getDeltaMovement();
+        Vec3 velocity =
+            mc.player.getDeltaMovement();
+
         double x = velocity.x;
         double z = velocity.z;
 
-        double length = Math.sqrt(x * x + z * z);
+        double length = Math.sqrt(
+            x * x + z * z
+        );
 
-        if (length < 0.001) return;
+        if (length < 0.001) {
+            return;
+        }
 
         double desired = Math.min(
-            1.2, length * multiplier
+            1.2,
+            length * multiplier
         );
 
         mc.player.setDeltaMovement(
@@ -121,40 +175,74 @@ public final class MovementModules {
     }
 
     private static void vertical(
-        Minecraft mc, double amount
+        Minecraft mc,
+        double amount
     ) {
-        Vec3 v = mc.player.getDeltaMovement();
-        mc.player.setDeltaMovement(v.x, amount, v.z);
+        Vec3 velocity =
+            mc.player.getDeltaMovement();
+
+        mc.player.setDeltaMovement(
+            velocity.x,
+            amount,
+            velocity.z
+        );
     }
 
-    public static void register(ModuleManager manager) {
+    // ========================================
+    // REGISTER MOVEMENT MODULES
+    // ========================================
+
+    public static void register(
+        ModuleManager manager
+    ) {
         load();
 
-        // SPEED
+        // ====================================
+        // 1. SPEED
+        // ====================================
+
         manager.register(new Module(
-            "Speed", "Adjust horizontal movement speed",
+            "Speed",
+            "Adjust horizontal movement speed",
             Category.MOVEMENT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null || !moving(mc)) return;
 
-                String mode = get("Speed", "mode", "Sprint");
+                if (mc == null || !moving(mc)) {
+                    return;
+                }
+
+                String mode = get(
+                    "Speed",
+                    "mode",
+                    "Sprint"
+                );
 
                 if (mode.equals("Sprint")) {
                     mc.player.setSprinting(true);
+
                 } else if (mode.equals("Custom")) {
-                    horizontal(mc, number(
-                        "Speed", "multiplier", 1.5
-                    ));
+                    horizontal(
+                        mc,
+                        number(
+                            "Speed",
+                            "multiplier",
+                            1.5
+                        )
+                    );
                 }
             }
         });
 
-        // FLY
+        // ====================================
+        // 2. FLY
+        // ====================================
+
         manager.register(new Module(
-            "Fly", "Client-side flight movement",
+            "Fly",
+            "Client-side flight movement",
             Category.MOVEMENT
         ) {
             private boolean oldFlying;
@@ -163,13 +251,20 @@ public final class MovementModules {
 
             @Override
             public void onEnable() {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.player == null) return;
+                Minecraft mc =
+                    Minecraft.getInstance();
 
-                var abilities = mc.player.getAbilities();
+                if (mc.player == null) {
+                    return;
+                }
+
+                var abilities =
+                    mc.player.getAbilities();
+
                 oldFlying = abilities.flying;
                 oldMayfly = abilities.mayfly;
-                oldSpeed = abilities.getFlyingSpeed();
+                oldSpeed =
+                    abilities.getFlyingSpeed();
 
                 abilities.mayfly = true;
                 abilities.flying = true;
@@ -178,31 +273,56 @@ public final class MovementModules {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                var abilities = mc.player.getAbilities();
+                if (mc == null) {
+                    return;
+                }
+
+                var abilities =
+                    mc.player.getAbilities();
+
                 abilities.mayfly = true;
                 abilities.flying = true;
-                abilities.setFlyingSpeed((float) (
-                    number("Fly", "speed", 1.0) * 0.05
-                ));
+
+                abilities.setFlyingSpeed(
+                    (float) (
+                        number(
+                            "Fly",
+                            "speed",
+                            1.0
+                        ) * 0.05
+                    )
+                );
             }
 
             @Override
             public void onDisable() {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc.player == null) return;
+                Minecraft mc =
+                    Minecraft.getInstance();
 
-                var abilities = mc.player.getAbilities();
+                if (mc.player == null) {
+                    return;
+                }
+
+                var abilities =
+                    mc.player.getAbilities();
+
                 abilities.mayfly = oldMayfly;
                 abilities.flying = oldFlying;
-                abilities.setFlyingSpeed(oldSpeed);
+
+                abilities.setFlyingSpeed(
+                    oldSpeed
+                );
             }
         });
 
-        // LONG JUMP
+        // ====================================
+        // 3. LONG JUMP
+        // ====================================
+
         manager.register(new Module(
-            "Long Jump", "Boost forward while jumping",
+            "Long Jump",
+            "Boost forward while jumping",
             Category.MOVEMENT
         ) {
             private boolean activated;
@@ -210,7 +330,10 @@ public final class MovementModules {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
+
+                if (mc == null) {
+                    return;
+                }
 
                 if (mc.player.onGround()) {
                     activated = false;
@@ -222,9 +345,16 @@ public final class MovementModules {
                     && mc.player.onGround()) {
 
                     mc.player.jumpFromGround();
-                    horizontal(mc, number(
-                        "Long Jump", "boost", 2.0
-                    ));
+
+                    horizontal(
+                        mc,
+                        number(
+                            "Long Jump",
+                            "boost",
+                            2.0
+                        )
+                    );
+
                     activated = true;
                 }
             }
@@ -235,9 +365,13 @@ public final class MovementModules {
             }
         });
 
-        // HIGH JUMP
+        // ====================================
+        // 4. HIGH JUMP
+        // ====================================
+
         manager.register(new Module(
-            "High Jump", "Increase jump height",
+            "High Jump",
+            "Increase jump height",
             Category.MOVEMENT
         ) {
             private boolean used;
@@ -245,7 +379,10 @@ public final class MovementModules {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
+
+                if (mc == null) {
+                    return;
+                }
 
                 if (!mc.options.keyJump.isDown()) {
                     used = false;
@@ -256,9 +393,16 @@ public final class MovementModules {
                     && mc.options.keyJump.isDown()) {
 
                     mc.player.jumpFromGround();
-                    vertical(mc, number(
-                        "High Jump", "height", 0.65
-                    ));
+
+                    vertical(
+                        mc,
+                        number(
+                            "High Jump",
+                            "height",
+                            0.65
+                        )
+                    );
+
                     used = true;
                 }
             }
@@ -269,9 +413,13 @@ public final class MovementModules {
             }
         });
 
-        // BUNNY HOP
+        // ====================================
+        // 5. BUNNY HOP
+        // ====================================
+
         manager.register(new Module(
-            "Bunny Hop", "Automatically chain jumps",
+            "Bunny Hop",
+            "Automatically chain jumps",
             Category.MOVEMENT
         ) {
             @Override
@@ -283,21 +431,32 @@ public final class MovementModules {
                     && mc.player.onGround()) {
 
                     mc.player.jumpFromGround();
-                    horizontal(mc, number(
-                        "Bunny Hop", "boost", 1.15
-                    ));
+
+                    horizontal(
+                        mc,
+                        number(
+                            "Bunny Hop",
+                            "boost",
+                            1.15
+                        )
+                    );
                 }
             }
         });
 
-        // STEP
+        // ====================================
+        // 6. STEP
+        // ====================================
+
         manager.register(new Module(
-            "Step", "Assist climbing small obstacles",
+            "Step",
+            "Assist climbing small obstacles",
             Category.MOVEMENT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
+
                 if (mc == null
                     || !moving(mc)
                     || !mc.player.onGround()
@@ -306,7 +465,9 @@ public final class MovementModules {
                 }
 
                 double height = number(
-                    "Step", "height", 1.0
+                    "Step",
+                    "height",
+                    1.0
                 );
 
                 if (height >= 1.0) {
@@ -315,9 +476,13 @@ public final class MovementModules {
             }
         });
 
-        // NO SLOW
+        // ====================================
+        // 7. NO SLOW
+        // ====================================
+
         manager.register(new Module(
-            "No Slow", "Movement boost while using items",
+            "No Slow",
+            "Movement boost while using items",
             Category.MOVEMENT
         ) {
             @Override
@@ -328,16 +493,25 @@ public final class MovementModules {
                     && mc.player.isUsingItem()
                     && moving(mc)) {
 
-                    horizontal(mc, number(
-                        "No Slow", "boost", 1.25
-                    ));
+                    horizontal(
+                        mc,
+                        number(
+                            "No Slow",
+                            "boost",
+                            1.25
+                        )
+                    );
                 }
             }
         });
 
-        // SPIDER
+        // ====================================
+        // 8. SPIDER
+        // ====================================
+
         manager.register(new Module(
-            "Spider", "Climb against walls",
+            "Spider",
+            "Climb against walls",
             Category.MOVEMENT
         ) {
             @Override
@@ -348,16 +522,25 @@ public final class MovementModules {
                     && mc.player.horizontalCollision
                     && moving(mc)) {
 
-                    vertical(mc, number(
-                        "Spider", "speed", 0.2
-                    ));
+                    vertical(
+                        mc,
+                        number(
+                            "Spider",
+                            "speed",
+                            0.2
+                        )
+                    );
                 }
             }
         });
 
-        // JESUS
+        // ====================================
+        // 9. JESUS
+        // ====================================
+
         manager.register(new Module(
-            "Jesus", "Assist movement across water",
+            "Jesus",
+            "Assist movement across water",
             Category.MOVEMENT
         ) {
             @Override
@@ -368,16 +551,25 @@ public final class MovementModules {
                     && mc.player.isInWater()
                     && !mc.options.keyShift.isDown()) {
 
-                    vertical(mc, number(
-                        "Jesus", "lift", 0.12
-                    ));
+                    vertical(
+                        mc,
+                        number(
+                            "Jesus",
+                            "lift",
+                            0.12
+                        )
+                    );
                 }
             }
         });
 
-        // PARKOUR
+        // ====================================
+        // 10. PARKOUR
+        // ====================================
+
         manager.register(new Module(
-            "Parkour", "Jump automatically while moving",
+            "Parkour",
+            "Automatically jump over obstacles",
             Category.MOVEMENT
         ) {
             private int cooldown;
@@ -385,9 +577,14 @@ public final class MovementModules {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                if (cooldown > 0) cooldown--;
+                if (mc == null) {
+                    return;
+                }
+
+                if (cooldown > 0) {
+                    cooldown--;
+                }
 
                 if (cooldown == 0
                     && mc.player.onGround()
@@ -398,22 +595,35 @@ public final class MovementModules {
                     cooldown = 8;
                 }
             }
+
+            @Override
+            public void onDisable() {
+                cooldown = 0;
+            }
         });
 
-        // SAFE WALK
+        // ====================================
+        // 11. SAFE WALK
+        // ====================================
+
         manager.register(new Module(
-            "Safe Walk", "Sneak while moving near edges",
+            "Safe Walk",
+            "Sneak while moving on the ground",
             Category.MOVEMENT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                // Safe Walk uses the vanilla sneak mechanic.
-                // Only apply it when grounded and moving.
-                if (mc.player.onGround() && moving(mc)) {
+                if (mc == null) {
+                    return;
+                }
+
+                if (mc.player.onGround()
+                    && moving(mc)) {
+
                     mc.options.keyShift.setDown(true);
+
                 } else {
                     mc.options.keyShift.setDown(false);
                 }
@@ -426,30 +636,46 @@ public final class MovementModules {
             }
         });
 
-        // NO FALL
+        // ====================================
+        // 12. NO FALL
+        // ====================================
+
         manager.register(new Module(
-            "No Fall", "Client-side fall assistance",
+            "No Fall",
+            "Client-side fall assistance",
             Category.MOVEMENT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
+
+                if (mc == null) {
+                    return;
+                }
 
                 if (mc.player.fallDistance
-                    > number("No Fall", "threshold", 3.0)
-                    && mc.player.getDeltaMovement().y < -0.4) {
+                    > number(
+                        "No Fall",
+                        "threshold",
+                        3.0
+                    )
+                    && mc.player.getDeltaMovement().y
+                        < -0.4) {
 
-                    // Limits client downward velocity only.
-                    // Does not bypass server fall damage.
+                    // Client-side velocity assistance.
+                    // Server fall damage still applies.
                     vertical(mc, -0.35);
                 }
             }
         });
 
-        // FAST LADDER
+        // ====================================
+        // 13. FAST LADDER
+        // ====================================
+
         manager.register(new Module(
-            "Fast Ladder", "Climb ladders faster",
+            "Fast Ladder",
+            "Climb ladders faster",
             Category.MOVEMENT
         ) {
             @Override
@@ -460,16 +686,25 @@ public final class MovementModules {
                     && mc.player.onClimbable()
                     && mc.options.keyUp.isDown()) {
 
-                    vertical(mc, number(
-                        "Fast Ladder", "speed", 0.3
-                    ));
+                    vertical(
+                        mc,
+                        number(
+                            "Fast Ladder",
+                            "speed",
+                            0.3
+                        )
+                    );
                 }
             }
         });
 
-        // AIR JUMP
+        // ====================================
+        // 14. AIR JUMP
+        // ====================================
+
         manager.register(new Module(
-            "Air Jump", "Limited extra midair jumps",
+            "Air Jump",
+            "Perform extra midair jumps",
             Category.MOVEMENT
         ) {
             private int jumps;
@@ -478,23 +713,36 @@ public final class MovementModules {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
+
+                if (mc == null) {
+                    return;
+                }
 
                 if (mc.player.onGround()) {
                     jumps = 0;
                 }
 
-                boolean down = mc.options.keyJump.isDown();
+                boolean down =
+                    mc.options.keyJump.isDown();
 
-                if (down && !previousJump
+                if (down
+                    && !previousJump
                     && !mc.player.onGround()
                     && jumps < (int) number(
-                        "Air Jump", "jumps", 1
+                        "Air Jump",
+                        "jumps",
+                        1
                     )) {
 
-                    vertical(mc, number(
-                        "Air Jump", "height", 0.42
-                    ));
+                    vertical(
+                        mc,
+                        number(
+                            "Air Jump",
+                            "height",
+                            0.42
+                        )
+                    );
+
                     jumps++;
                 }
 
@@ -508,9 +756,13 @@ public final class MovementModules {
             }
         });
 
-        // ELYTRA BOOST
+        // ====================================
+        // 15. ELYTRA BOOST
+        // ====================================
+
         manager.register(new Module(
-            "Elytra Boost", "Boost while gliding",
+            "Elytra Boost",
+            "Accelerate while gliding",
             Category.MOVEMENT
         ) {
             @Override
@@ -526,10 +778,14 @@ public final class MovementModules {
                 }
 
                 if (mc.options.keyUp.isDown()) {
-                    Vec3 look = mc.player.getLookAngle();
+
+                    Vec3 look =
+                        mc.player.getLookAngle();
 
                     double boost = number(
-                        "Elytra Boost", "boost", 0.04
+                        "Elytra Boost",
+                        "boost",
+                        0.04
                     );
 
                     mc.player.setDeltaMovement(
