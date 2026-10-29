@@ -7,6 +7,7 @@ package nova.client.client;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
@@ -40,12 +41,20 @@ public final class NovaClient implements ClientModInitializer {
         CONFIG.load();
         NovaHud.initialize();
 
+        // Keep gameplay systems on client ticks.
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             MODULES.tick();
-            EspRenderer.tick(client);
             handleMacro(client);
             handleGuiKey(client);
+
+        });
+
+        // NEW: Submit ESP visuals during frame extraction.
+        // Do not also call EspRenderer.tick() above.
+        WorldRenderEvents.END_EXTRACTION.register(context -> {
+
+            EspRenderer.render(Minecraft.getInstance());
 
         });
 
