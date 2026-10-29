@@ -1,4 +1,3 @@
-
 package nova.client.client.config;
 
 // @name: ConfigManager
@@ -23,6 +22,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
 import nova.client.client.module.MobEspSettings;
+import nova.client.client.module.RadarSettings;
 
 public class ConfigManager {
 
@@ -41,15 +41,13 @@ public class ConfigManager {
         this.manager = manager;
     }
 
-    // =========================================
-    // SAVE CONFIGURATION
-    // =========================================
-
     public void save() {
+
         try {
+
             JsonObject root = new JsonObject();
 
-            // Save all module states and keybinds
+            // Save module states and keybinds
             for (Module module : manager.getModules()) {
 
                 JsonObject data = new JsonObject();
@@ -67,7 +65,7 @@ public class ConfigManager {
                 root.add(module.getName(), data);
             }
 
-            // Save selected Mob ESP entities
+            // Save Mob ESP selections
             JsonArray mobSelections = new JsonArray();
 
             for (String id : MobEspSettings.getSelected()) {
@@ -76,10 +74,45 @@ public class ConfigManager {
 
             root.add("mobEspSelections", mobSelections);
 
-            // Create config folder if missing
+            // Save Entity Radar settings
+            JsonObject radar = new JsonObject();
+
+            radar.addProperty(
+                "range", RadarSettings.range
+            );
+
+            radar.addProperty(
+                "size", RadarSettings.size
+            );
+
+            radar.addProperty(
+                "players", RadarSettings.players
+            );
+
+            radar.addProperty(
+                "hostile", RadarSettings.hostile
+            );
+
+            radar.addProperty(
+                "passive", RadarSettings.passive
+            );
+
+            radar.addProperty(
+                "rotate", RadarSettings.rotate
+            );
+
+            radar.addProperty(
+                "names", RadarSettings.names
+            );
+
+            radar.addProperty(
+                "distance", RadarSettings.distance
+            );
+
+            root.add("entityRadarSettings", radar);
+
             Files.createDirectories(path.getParent());
 
-            // Write configuration
             try (Writer writer =
                      Files.newBufferedWriter(path)) {
 
@@ -100,16 +133,14 @@ public class ConfigManager {
         }
     }
 
-    // =========================================
-    // LOAD CONFIGURATION
-    // =========================================
-
     public void load() {
 
         if (!Files.exists(path)) {
+
             System.out.println(
                 "[Nova Client] No configuration found. Using defaults."
             );
+
             return;
         }
 
@@ -123,6 +154,56 @@ public class ConfigManager {
                 return;
             }
 
+            // Load Entity Radar settings
+            if (root.has("entityRadarSettings")
+                && root.get("entityRadarSettings").isJsonObject()) {
+
+                JsonObject radar =
+                    root.getAsJsonObject("entityRadarSettings");
+
+                if (radar.has("range")) {
+                    RadarSettings.setRange(
+                        radar.get("range").getAsInt()
+                    );
+                }
+
+                if (radar.has("size")) {
+                    RadarSettings.setSize(
+                        radar.get("size").getAsInt()
+                    );
+                }
+
+                if (radar.has("players")) {
+                    RadarSettings.players =
+                        radar.get("players").getAsBoolean();
+                }
+
+                if (radar.has("hostile")) {
+                    RadarSettings.hostile =
+                        radar.get("hostile").getAsBoolean();
+                }
+
+                if (radar.has("passive")) {
+                    RadarSettings.passive =
+                        radar.get("passive").getAsBoolean();
+                }
+
+                if (radar.has("rotate")) {
+                    RadarSettings.rotate =
+                        radar.get("rotate").getAsBoolean();
+                }
+
+                if (radar.has("names")) {
+                    RadarSettings.names =
+                        radar.get("names").getAsBoolean();
+                }
+
+                if (radar.has("distance")) {
+                    RadarSettings.distance =
+                        radar.get("distance").getAsBoolean();
+                }
+            }
+
             // Load Mob ESP selections
             if (root.has("mobEspSelections")
                 && root.get("mobEspSelections").isJsonArray()) {
@@ -133,6 +214,7 @@ public class ConfigManager {
                     root.getAsJsonArray("mobEspSelections");
 
                 for (JsonElement element : savedMobs) {
+
                     if (element.isJsonPrimitive()
                         && element.getAsJsonPrimitive().isString()) {
 
@@ -143,15 +225,14 @@ public class ConfigManager {
                 MobEspSettings.setSelected(ids);
             }
 
-            // Load all module states and keybinds
+            // Load module states and keybinds
             for (Module module : manager.getModules()) {
 
                 if (!root.has(module.getName())) {
                     continue;
                 }
 
-                JsonElement entry =
-                    root.get(module.getName());
+                JsonElement entry = root.get(module.getName());
 
                 if (!entry.isJsonObject()) {
                     continue;
