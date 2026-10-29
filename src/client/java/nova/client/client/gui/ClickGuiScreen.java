@@ -1,3 +1,4 @@
+
 package nova.client.client.gui;
 
 // @name: ClickGuiScreen
@@ -27,7 +28,6 @@ public final class ClickGuiScreen extends Screen {
     private static final int HEADER_H = 27;
     private static final int ROW_H = 21;
 
-    // Dark Arctic Blue theme — original Nova Nebula v3 layout preserved.
     private static final int BACKGROUND = 0xE8091522;
     private static final int PANEL = 0xF5102638;
     private static final int HEADER = 0xFF194663;
@@ -37,8 +37,6 @@ public final class ClickGuiScreen extends Screen {
     private static final int PURPLE = 0xFF83C9ED;
     private static final int WHITE = 0xFFE0F3FF;
     private static final int MUTED = 0xFF8DADC2;
-    private static final int HOVER = 0xFF1B3D55;
-    private static final int LINE = 0xFF315B75;
 
     private final List<CategoryPanel> panels =
         new ArrayList<>();
@@ -47,7 +45,6 @@ public final class ClickGuiScreen extends Screen {
 
     private int dragOffsetX;
     private int dragOffsetY;
-
     private int mouseX;
     private int mouseY;
 
@@ -58,13 +55,10 @@ public final class ClickGuiScreen extends Screen {
     private int mobScroll;
 
     private static final class CategoryPanel {
-
         final Category category;
-
         int x;
         int y;
         int scroll;
-
         boolean collapsed;
 
         CategoryPanel(Category category, int x, int y) {
@@ -80,7 +74,6 @@ public final class ClickGuiScreen extends Screen {
 
     @Override
     protected void init() {
-
         if (!panels.isEmpty()) {
             return;
         }
@@ -104,7 +97,6 @@ public final class ClickGuiScreen extends Screen {
         );
 
         for (int i = 0; i < categories.length; i++) {
-
             panels.add(new CategoryPanel(
                 categories[i],
                 startX + (i % columns) * (PANEL_W + 10),
@@ -115,7 +107,6 @@ public final class ClickGuiScreen extends Screen {
 
     @Override
     public void tick() {
-
         Minecraft mc = Minecraft.getInstance();
 
         if (mc.getWindow() == null) {
@@ -155,7 +146,6 @@ public final class ClickGuiScreen extends Screen {
         }
 
         if (left && draggingPanel != null) {
-
             draggingPanel.x = Math.max(
                 0,
                 Math.min(
@@ -182,11 +172,13 @@ public final class ClickGuiScreen extends Screen {
     }
 
     private boolean inside(
-        int mx, int my,
-        int x, int y,
-        int w, int h
+        int mx,
+        int my,
+        int x,
+        int y,
+        int w,
+        int h
     ) {
-
         return mx >= x
             && mx < x + w
             && my >= y
@@ -202,14 +194,12 @@ public final class ClickGuiScreen extends Screen {
         int my,
         boolean rightClick
     ) {
-
         if (espSettingsModule != null) {
             handleEspClick(mx, my, rightClick);
             return;
         }
 
         for (int i = panels.size() - 1; i >= 0; i--) {
-
             CategoryPanel panel = panels.get(i);
 
             if (inside(
@@ -217,15 +207,10 @@ public final class ClickGuiScreen extends Screen {
                 panel.x, panel.y,
                 PANEL_W, HEADER_H
             )) {
-
                 if (rightClick) {
-
                     panel.collapsed = !panel.collapsed;
-
                 } else {
-
                     draggingPanel = panel;
-
                     dragOffsetX = mx - panel.x;
                     dragOffsetY = my - panel.y;
 
@@ -277,36 +262,39 @@ public final class ClickGuiScreen extends Screen {
             Module module = modules.get(index);
 
             if (rightClick) {
-
                 String name = module.getName();
 
-                if (name.equalsIgnoreCase("X-Ray")) {
+                // MACRO SETTINGS
+                if (name.equalsIgnoreCase("Macro Recorder")) {
+                    Minecraft.getInstance().setScreen(
+                        new MacroSettingsScreen(this)
+                    );
+                    return;
+                }
 
+                // X-RAY SETTINGS
+                if (name.equalsIgnoreCase("X-Ray")) {
                     Minecraft.getInstance().setScreen(
                         new XraySettingsScreen(this)
                     );
-
                     return;
                 }
 
+                // RADAR SETTINGS
                 if (name.equalsIgnoreCase("Entity Radar")) {
-
                     Minecraft.getInstance().setScreen(
                         new RadarSettingsScreen(this)
                     );
-
                     return;
                 }
 
+                // ESP SETTINGS
                 if (name.equalsIgnoreCase("Mob ESP")
                     || name.equalsIgnoreCase("Player ESP")) {
-
                     espSettingsModule = module;
                     mobScroll = 0;
                 }
-
             } else {
-
                 NovaClient.MODULES.toggleModule(module);
                 NovaClient.CONFIG.save();
             }
@@ -328,40 +316,34 @@ public final class ClickGuiScreen extends Screen {
         int my,
         boolean rightClick
     ) {
-
         int x = settingsX();
         int y = settingsY();
 
         if (rightClick
             || inside(mx, my, x + 10, y + 10, 65, 22)) {
-
             espSettingsModule = null;
             return;
         }
 
         if (inside(mx, my, x + 10, y + 50, 105, 25)) {
-
             EspOverlaySettings.toggleNames();
             NovaClient.CONFIG.save();
             return;
         }
 
         if (inside(mx, my, x + 127, y + 50, 105, 25)) {
-
             EspOverlaySettings.toggleHealth();
             NovaClient.CONFIG.save();
             return;
         }
 
         if (inside(mx, my, x + 244, y + 50, 105, 25)) {
-
             EspOverlaySettings.toggleTracers();
             NovaClient.CONFIG.save();
             return;
         }
 
         if (inside(mx, my, x + 15, y + 104, 330, 22)) {
-
             float progress = Math.max(
                 0.0F,
                 Math.min(
@@ -387,37 +369,34 @@ public final class ClickGuiScreen extends Screen {
         }
 
         if (inside(mx, my, x + 255, y + 10, 45, 22)) {
-
             MobEspSettings.selectAll();
             NovaClient.CONFIG.save();
             return;
         }
 
         if (inside(mx, my, x + 305, y + 10, 45, 22)) {
-
             MobEspSettings.selectNone();
             NovaClient.CONFIG.save();
             return;
         }
 
         if (inside(mx, my, x + 10, y + 328, 60, 20)) {
-
             mobScroll = Math.max(0, mobScroll - 6);
             return;
         }
 
         if (inside(mx, my, x + 290, y + 328, 60, 20)) {
-
             mobScroll = Math.min(
-                Math.max(0, MobEspSettings.MOBS.length - 12),
+                Math.max(
+                    0,
+                    MobEspSettings.MOBS.length - 12
+                ),
                 mobScroll + 6
             );
-
             return;
         }
 
         for (int i = 0; i < 12; i++) {
-
             int index = mobScroll + i;
 
             if (index >= MobEspSettings.MOBS.length) {
@@ -428,7 +407,6 @@ public final class ClickGuiScreen extends Screen {
             int by = y + 139 + (i / 2) * 30;
 
             if (inside(mx, my, bx, by, 165, 25)) {
-
                 MobEspSettings.toggle(
                     MobEspSettings.MOBS[index]
                 );
@@ -446,11 +424,9 @@ public final class ClickGuiScreen extends Screen {
         double horizontalAmount,
         double verticalAmount
     ) {
-
         int direction = verticalAmount > 0 ? -1 : 1;
 
         if (espSettingsModule != null) {
-
             if (espSettingsModule.getName()
                 .equalsIgnoreCase("Mob ESP")) {
 
@@ -470,7 +446,6 @@ public final class ClickGuiScreen extends Screen {
         }
 
         for (CategoryPanel panel : panels) {
-
             if (panel.collapsed) {
                 continue;
             }
@@ -478,8 +453,10 @@ public final class ClickGuiScreen extends Screen {
             if (!inside(
                 (int) mx,
                 (int) my,
-                panel.x, panel.y,
-                PANEL_W, PANEL_H
+                panel.x,
+                panel.y,
+                PANEL_W,
+                PANEL_H
             )) {
                 continue;
             }
@@ -491,7 +468,10 @@ public final class ClickGuiScreen extends Screen {
             panel.scroll = Math.max(
                 0,
                 Math.min(
-                    Math.max(0, count - visibleRows()),
+                    Math.max(
+                        0,
+                        count - visibleRows()
+                    ),
                     panel.scroll + direction
                 )
             );
@@ -500,7 +480,10 @@ public final class ClickGuiScreen extends Screen {
         }
 
         return super.mouseScrolled(
-            mx, my, horizontalAmount, verticalAmount
+            mx,
+            my,
+            horizontalAmount,
+            verticalAmount
         );
     }
 
@@ -511,20 +494,21 @@ public final class ClickGuiScreen extends Screen {
         int my,
         float delta
     ) {
-
         g.fill(
             0, 0,
             width, height,
             BACKGROUND
         );
 
-        g.fill(0, 0, width, 39, PANEL);
-        g.fill(0, 38, width, 39, BORDER);
-        g.fill(0, 0, 3, 38, PURPLE);
+        g.fill(
+            0, 0,
+            width, 39,
+            PANEL
+        );
 
         g.drawString(
             font,
-            "NOVA NEBULA  |  CLIENT v3.0",
+            "NOVA NEBULA v3",
             12, 14,
             WHITE,
             true
@@ -533,7 +517,7 @@ public final class ClickGuiScreen extends Screen {
         g.drawString(
             font,
             "LEFT: TOGGLE  |  RIGHT: SETTINGS",
-            205, 14,
+            145, 14,
             MUTED,
             false
         );
@@ -551,17 +535,18 @@ public final class ClickGuiScreen extends Screen {
         GuiGraphics g,
         CategoryPanel panel
     ) {
-
         int x = panel.x;
         int y = panel.y;
 
         int panelHeight =
             panel.collapsed ? HEADER_H : PANEL_H;
 
-        // Thin frost-blue frame and shadow.
-        g.fill(x + 2, y + 3, x + PANEL_W + 3, y + panelHeight + 3, 0x65000000);
-        g.fill(x - 1, y - 1, x + PANEL_W + 1, y + panelHeight + 1, BORDER);
-        g.fill(x, y, x + PANEL_W, y + panelHeight, PANEL);
+        g.fill(
+            x, y,
+            x + PANEL_W,
+            y + panelHeight,
+            PANEL
+        );
 
         g.fill(
             x, y,
@@ -569,9 +554,6 @@ public final class ClickGuiScreen extends Screen {
             y + HEADER_H,
             HEADER
         );
-
-        g.fill(x, y, x + 3, y + HEADER_H, PURPLE);
-        g.fill(x + 3, y + HEADER_H - 1, x + PANEL_W, y + HEADER_H, LINE);
 
         g.drawString(
             font,
@@ -601,7 +583,6 @@ public final class ClickGuiScreen extends Screen {
             );
 
         for (int row = 0; row < visibleRows(); row++) {
-
             int index = panel.scroll + row;
 
             if (index >= modules.size()) {
@@ -610,27 +591,24 @@ public final class ClickGuiScreen extends Screen {
 
             Module module = modules.get(index);
 
-            int ry = y + HEADER_H + 4 + row * ROW_H;
+            int ry =
+                y + HEADER_H + 4 + row * ROW_H;
 
             g.fill(
-                x + 4, ry,
+                x + 4,
+                ry,
                 x + PANEL_W - 4,
                 ry + ROW_H - 2,
-                module.isEnabled() ? ACTIVE
-                    : inside(mouseX, mouseY, x + 4, ry, PANEL_W - 8, ROW_H - 2) ? HOVER : ROW
+                module.isEnabled() ? ACTIVE : ROW
             );
-
-            if (module.isEnabled()) {
-                g.fill(x + 4, ry, x + 6, ry + ROW_H - 2, PURPLE);
-            }
 
             String name = module.getName();
 
             while (name.length() > 1
                 && font.width(name) > PANEL_W - 25) {
-
                 name = name.substring(
-                    0, name.length() - 1
+                    0,
+                    name.length() - 1
                 );
             }
 
@@ -650,7 +628,7 @@ public final class ClickGuiScreen extends Screen {
                 ry + 12,
                 module.isEnabled()
                     ? PURPLE
-                    : 0xFF36546A
+                    : 0xFF51425F
             );
         }
 
@@ -665,7 +643,6 @@ public final class ClickGuiScreen extends Screen {
     }
 
     private void drawEspSettings(GuiGraphics g) {
-
         int x = settingsX();
         int y = settingsY();
 
@@ -676,27 +653,35 @@ public final class ClickGuiScreen extends Screen {
         );
 
         g.fill(
-            x - 1, y - 1,
-            x + 361, y + 361,
+            x - 1,
+            y - 1,
+            x + 361,
+            y + 361,
             BORDER
         );
 
         g.fill(
             x, y,
-            x + 360, y + 360,
+            x + 360,
+            y + 360,
             PANEL
         );
 
         g.fill(
             x, y,
-            x + 360, y + 36,
+            x + 360,
+            y + 36,
             HEADER
         );
 
         drawButton(
-            g, x + 10, y + 10,
-            65, 22,
-            "BACK", false
+            g,
+            x + 10,
+            y + 10,
+            65,
+            22,
+            "BACK",
+            false
         );
 
         boolean mob =
@@ -704,7 +689,6 @@ public final class ClickGuiScreen extends Screen {
                 .equalsIgnoreCase("Mob ESP");
 
         if (mob) {
-
             drawButton(
                 g, x + 255, y + 10,
                 45, 22,
@@ -750,8 +734,10 @@ public final class ClickGuiScreen extends Screen {
         );
 
         g.fill(
-            x + 15, y + 110,
-            x + 345, y + 117,
+            x + 15,
+            y + 110,
+            x + 345,
+            y + 117,
             ROW
         );
 
@@ -761,8 +747,10 @@ public final class ClickGuiScreen extends Screen {
         );
 
         g.fill(
-            x + 15, y + 110,
-            x + 15 + sliderFill, y + 117,
+            x + 15,
+            y + 110,
+            x + 15 + sliderFill,
+            y + 117,
             PURPLE
         );
 
@@ -771,20 +759,21 @@ public final class ClickGuiScreen extends Screen {
         }
 
         for (int i = 0; i < 12; i++) {
-
             int index = mobScroll + i;
 
             if (index >= MobEspSettings.MOBS.length) {
                 break;
             }
 
-            String id = MobEspSettings.MOBS[index];
+            String id =
+                MobEspSettings.MOBS[index];
 
             drawButton(
                 g,
                 x + 10 + (i % 2) * 175,
                 y + 139 + (i / 2) * 30,
-                165, 25,
+                165,
+                25,
                 id.replace('_', ' '),
                 MobEspSettings.isSelected(id)
             );
@@ -812,14 +801,12 @@ public final class ClickGuiScreen extends Screen {
         String label,
         boolean enabled
     ) {
-
-        boolean hovered = inside(mouseX, mouseY, x, y, w, h);
-        g.fill(x, y, x + w, y + h, BORDER);
-        g.fill(x + 1, y + 1, x + w - 1, y + h - 1,
-            enabled ? ACTIVE : hovered ? HOVER : ROW);
-        if (enabled) {
-            g.fill(x + 1, y + 1, x + 3, y + h - 1, PURPLE);
-        }
+        g.fill(
+            x, y,
+            x + w,
+            y + h,
+            enabled ? ACTIVE : ROW
+        );
 
         g.drawCenteredString(
             font,
