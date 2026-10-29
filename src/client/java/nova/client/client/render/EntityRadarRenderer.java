@@ -1,4 +1,3 @@
-
 package nova.client.client.render;
 
 // @name: EntityRadarRenderer
@@ -17,145 +16,148 @@ import net.minecraft.world.entity.player.Player;
 
 import nova.client.client.NovaClient;
 import nova.client.client.module.Module;
+import nova.client.client.module.RadarSettings;
 
 public final class EntityRadarRenderer {
 
-    private static final int RADIUS = 55;
-    private static final int DETECTION_RANGE = 64;
-
-    private static final int PLAYER_COLOR = 0xFF43E5FF;
-    private static final int HOSTILE_COLOR = 0xFFFF526F;
-    private static final int MOB_COLOR = 0xFFFFD56D;
-
+    private static final int CYAN = 0xFF43E5FF;
+    private static final int RED = 0xFFFF526F;
+    private static final int YELLOW = 0xFFFFD56D;
     private static final int PURPLE = 0xFFAD80FF;
 
     private EntityRadarRenderer() {
     }
 
     public static void initialize() {
-
         HudRenderCallback.EVENT.register(
             (graphics, tickCounter) -> render(graphics)
         );
     }
 
-    private static boolean enabled() {
+    private static void render(GuiGraphics g) {
+
+        Minecraft mc = Minecraft.getInstance();
 
         Module module =
             NovaClient.MODULES.getByName("Entity Radar");
 
-        return module != null && module.isEnabled();
-    }
-
-    private static void render(GuiGraphics graphics) {
-
-        Minecraft mc = Minecraft.getInstance();
-
-        if (!enabled()
+        if (module == null
+            || !module.isEnabled()
             || mc.player == null
             || mc.level == null
             || mc.options.hideGui) {
             return;
         }
 
-        // Place radar below the minimap when both are enabled.
+        int diameter = RadarSettings.size;
+        int radius = diameter / 2;
+
         Module minimap =
             NovaClient.MODULES.getByName("Minimap");
 
-        boolean minimapEnabled =
+        boolean showMap =
             minimap != null && minimap.isEnabled();
 
-        int cx = graphics.guiWidth() - RADIUS - 20;
+        int cx = g.guiWidth() - radius - 20;
 
-        int cy = minimapEnabled
-            ? 25 + 123 + 55 + 35
-            : RADIUS + 35;
+        int cy = showMap
+            ? 25 + 123 + radius + 35
+            : radius + 35;
 
-        // Background panel.
-        graphics.fill(
-            cx - RADIUS - 9,
-            cy - RADIUS - 24,
-            cx + RADIUS + 9,
-            cy + RADIUS + 21,
-            0xB00B0717
+        cx = Math.max(radius + 12, cx);
+
+        cy = Math.max(
+            radius + 27,
+            Math.min(g.guiHeight() - radius - 22, cy)
         );
 
-        graphics.drawString(
+        // Background
+        g.fill(
+            cx - radius - 9,
+            cy - radius - 24,
+            cx + radius + 9,
+            cy + radius + 21,
+            0xC00B0717
+        );
+
+        // Title
+        g.drawString(
             mc.font,
             "ENTITY RADAR",
-            cx - RADIUS,
-            cy - RADIUS - 17,
+            cx - radius,
+            cy - radius - 17,
             0xFFD7B7FF,
             true
         );
 
-        // Circular radar grid.
+        // Radar circles
         drawCircle(
-            graphics,
-            cx,
-            cy,
-            RADIUS,
-            PURPLE
+            g, cx, cy, radius, PURPLE
         );
 
         drawCircle(
-            graphics,
-            cx,
-            cy,
-            RADIUS / 2,
-            0xFF5D4787
+            g, cx, cy, radius / 2, 0xFF5D4787
         );
 
-        graphics.fill(
-            cx - RADIUS,
-            cy,
-            cx + RADIUS,
-            cy + 1,
+        // Crosshair
+        g.fill(
+            cx - radius, cy,
+            cx + radius, cy + 1,
             0x665E4B82
         );
 
-        graphics.fill(
-            cx,
-            cy - RADIUS,
-            cx + 1,
-            cy + RADIUS,
+        g.fill(
+            cx, cy - radius,
+            cx + 1, cy + radius,
             0x665E4B82
         );
 
-        // Player center marker.
-        graphics.fill(
-            cx - 3,
-            cy - 3,
-            cx + 4,
-            cy + 4,
+        // Player center marker
+        g.fill(
+            cx - 3, cy - 3,
+            cx + 4, cy + 4,
             0xFFDDACFF
         );
 
-        double playerYaw =
+        double yaw =
             Math.toRadians(mc.player.getYRot());
 
-        double cos = Math.cos(playerYaw);
-        double sin = Math.sin(playerYaw);
+        double cos = Math.cos(yaw);
+        double sin = Math.sin(yaw);
 
         int count = 0;
 
         for (Entity entity : mc.level.entitiesForRendering()) {
 
-            if (entity == mc.player
-                || entity.isRemoved()) {
+            if (entity == mc.player || entity.isRemoved()) {
                 continue;
             }
 
             int color;
 
             if (entity instanceof Player) {
-                color = PLAYER_COLOR;
+
+                if (!RadarSettings.players) {
+                    continue;
+                }
+
+                color = CYAN;
 
             } else if (entity instanceof Monster) {
-                color = HOSTILE_COLOR;
+
+                if (!RadarSettings.hostile) {
+                    continue;
+                }
+
+                color = RED;
 
             } else if (entity instanceof Mob) {
-                color = MOB_COLOR;
+
+                if (!RadarSettings.passive) {
+                    continue;
+                }
+
+                color = YELLOW;
 
             } else {
                 continue;
@@ -167,40 +169,41 @@ public final class EntityRadarRenderer {
             double dz =
                 entity.getZ() - mc.player.getZ();
 
-            double distanceSquared =
-                dx * dx + dz * dz;
+            double distance =
+                Math.sqrt(dx * dx + dz * dz);
 
-            if (distanceSquared
-                > DETECTION_RANGE * DETECTION_RANGE) {
+            if (distance > RadarSettings.range) {
                 continue;
             }
 
-            // Rotate radar so forward is up.
-            double rotatedX =
-                dx * cos + dz * sin;
+            // Optional rotation
+            double rx = RadarSettings.rotate
+                ? dx * cos + dz * sin
+                : dx;
 
-            double rotatedZ =
-                -dx * sin + dz * cos;
+            double rz = RadarSettings.rotate
+                ? dx * sin - dz * cos
+                : dz;
 
             double scale =
-                (RADIUS - 5.0) / DETECTION_RANGE;
+                (radius - 5.0) / RadarSettings.range;
 
             int dotX =
-                cx + (int) Math.round(rotatedX * scale);
+                cx + (int) Math.round(rx * scale);
 
             int dotY =
-                cy + (int) Math.round(rotatedZ * scale);
+                cy + (int) Math.round(rz * scale);
 
-            double radarDX = dotX - cx;
-            double radarDY = dotY - cy;
+            double offX = dotX - cx;
+            double offY = dotY - cy;
 
-            if (radarDX * radarDX
-                + radarDY * radarDY
-                > (RADIUS - 3) * (RADIUS - 3)) {
+            if (offX * offX + offY * offY
+                > (radius - 3) * (radius - 3)) {
                 continue;
             }
 
-            graphics.fill(
+            // Dot outline
+            g.fill(
                 dotX - 2,
                 dotY - 2,
                 dotX + 3,
@@ -208,7 +211,8 @@ public final class EntityRadarRenderer {
                 0xFF090612
             );
 
-            graphics.fill(
+            // Entity dot
+            g.fill(
                 dotX - 1,
                 dotY - 1,
                 dotX + 2,
@@ -216,28 +220,74 @@ public final class EntityRadarRenderer {
                 color
             );
 
+            // Optional name and distance
+            if (RadarSettings.names || RadarSettings.distance) {
+
+                String label = RadarSettings.names
+                    ? entity.getName().getString()
+                    : "";
+
+                if (RadarSettings.distance) {
+
+                    label +=
+                        (label.isEmpty() ? "" : " ")
+                        + (int) Math.round(distance)
+                        + "m";
+                }
+
+                if (label.length() > 22) {
+                    label = label.substring(0, 22);
+                }
+
+                int labelX = Math.max(
+                    2,
+                    Math.min(
+                        g.guiWidth() - mc.font.width(label) - 2,
+                        dotX + 4
+                    )
+                );
+
+                int labelY = Math.max(
+                    2,
+                    Math.min(
+                        g.guiHeight() - 10,
+                        dotY - 5
+                    )
+                );
+
+                g.drawString(
+                    mc.font,
+                    label,
+                    labelX,
+                    labelY,
+                    color,
+                    true
+                );
+            }
+
             count++;
         }
 
-        graphics.drawString(
+        // Footer
+        g.drawString(
             mc.font,
-            "Targets: " + count,
-            cx - RADIUS,
-            cy + RADIUS + 7,
+            "Targets: " + count
+                + "  " + RadarSettings.range + "m",
+            cx - radius,
+            cy + radius + 7,
             0xFFC7B6E4,
             true
         );
     }
 
     private static void drawCircle(
-        GuiGraphics graphics,
+        GuiGraphics g,
         int cx,
         int cy,
         int radius,
         int color
     ) {
 
-        // Draw a circular outline using small rectangles.
         for (int angle = 0; angle < 360; angle += 2) {
 
             double radians = Math.toRadians(angle);
@@ -250,11 +300,9 @@ public final class EntityRadarRenderer {
                 Math.sin(radians) * radius
             );
 
-            graphics.fill(
-                x,
-                y,
-                x + 2,
-                y + 2,
+            g.fill(
+                x, y,
+                x + 2, y + 2,
                 color
             );
         }
