@@ -48,22 +48,27 @@ public final class EspOverlaySettings {
 
     public static float getHealth(Entity entity) {
         if (entity instanceof LivingEntity living) {
-            return Math.max(0, living.getHealth());
+            return Math.max(0.0F, living.getHealth());
         }
-        return 0;
+
+        return 0.0F;
     }
 
     public static float getMaxHealth(Entity entity) {
         if (entity instanceof LivingEntity living) {
-            return Math.max(1, living.getMaxHealth());
+            return Math.max(1.0F, living.getMaxHealth());
         }
-        return 1;
+
+        return 1.0F;
     }
 
     public static float getHealthPercent(Entity entity) {
-        return Math.min(
-            1,
-            getHealth(entity) / getMaxHealth(entity)
+        return Math.max(
+            0.0F,
+            Math.min(
+                1.0F,
+                getHealth(entity) / getMaxHealth(entity)
+            )
         );
     }
 
