@@ -28,7 +28,8 @@ public final class EspRenderer {
 
     private EspRenderer() {}
 
-    public static void tick(Minecraft mc) {
+    // Called during world-render extraction.
+    public static void render(Minecraft mc) {
 
         if (mc == null || mc.level == null || mc.player == null) {
             return;
@@ -50,7 +51,16 @@ public final class EspRenderer {
             return;
         }
 
-        Vec3 tracerStart = getTracerStart(mc);
+        // Fraction of the current game tick used by rendering.
+        float partialTick = mc.getDeltaTracker()
+            .getGameTimeDeltaPartialTick(false);
+
+        partialTick = Math.max(
+            0.0F,
+            Math.min(1.0F, partialTick)
+        );
+
+        Vec3 tracerStart = getTracerStart(mc, partialTick);
 
         for (Entity entity : mc.level.entitiesForRendering()) {
 
@@ -71,11 +81,28 @@ public final class EspRenderer {
                 }
             }
 
-            AABB box = entity.getBoundingBox().inflate(0.05);
+            // Interpolate entity position between game ticks.
+            Vec3 smoothPosition =
+                interpolatePosition(entity, partialTick);
+
+            // Move the entity's current box to its
+            // interpolated render position.
+            Vec3 currentPosition = entity.position();
+
+            AABB box = entity.getBoundingBox()
+                .move(
+                    smoothPosition.x - currentPosition.x,
+                    smoothPosition.y - currentPosition.y,
+                    smoothPosition.z - currentPosition.z
+                )
+                .inflate(0.05);
+
             int color = isPlayer ? CYAN : PURPLE;
 
+            // Same Nova Competitive corner design.
             drawCorners(box, color);
 
+            // Name label
             if (EspOverlaySettings.showNames()) {
 
                 Vec3 namePosition = new Vec3(
@@ -93,6 +120,7 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
+            // Health bar and HP text
             if (EspOverlaySettings.showHealth()
                     && entity instanceof LivingEntity) {
 
@@ -144,6 +172,8 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
+            // Smooth tracer from interpolated player
+            // position to interpolated entity position.
             if (EspOverlaySettings.showTracers()) {
 
                 Gizmos.line(
@@ -156,29 +186,70 @@ public final class EspRenderer {
         }
     }
 
-    /**
-     * Tracer origin:
-     * First-person: below the player's eye position.
-     * Third-person: middle of the player's body.
-     *
-     * Uses methods already available in the project.
-     */
-    private static Vec3 getTracerStart(Minecraft mc) {
+    // Interpolate movement between previous and current tick.
+    private static Vec3 interpolatePosition(
+            Entity entity,
+            float partialTick) {
+
+        Vec3 current = entity.position();
+
+        double x = lerp(
+            partialTick,
+            entity.xo,
+            current.x
+        );
+
+        double y = lerp(
+            partialTick,
+            entity.yo,
+            current.y
+        );
+
+        double z = lerp(
+            partialTick,
+            entity.zo,
+            current.z
+        );
+
+        return new Vec3(x, y, z);
+    }
+
+    private static double lerp(
+            float partialTick,
+            double previous,
+            double current) {
+
+        return previous
+            + (current - previous) * partialTick;
+    }
+
+    // First-person: below eye level.
+    // Third-person: center of character's body.
+    private static Vec3 getTracerStart(
+            Minecraft mc,
+            float partialTick) {
+
+        Vec3 playerPosition =
+            interpolatePosition(mc.player, partialTick);
+
+        double height = mc.player.getBbHeight();
 
         if (mc.options.getCameraType().isFirstPerson()) {
 
-            // Lower than eye level, slightly forward.
-            Vec3 eyes = mc.player.getEyePosition();
             Vec3 forward = mc.player.getLookAngle();
 
-            return eyes
-                .add(0.0, -0.65, 0.0)
+            return playerPosition
+                .add(
+                    0.0,
+                    mc.player.getEyeHeight() - 0.65,
+                    0.0
+                )
                 .add(forward.scale(0.30));
         }
 
-        return mc.player.position().add(
+        return playerPosition.add(
             0.0,
-            mc.player.getBbHeight() * 0.5,
+            height * 0.5,
             0.0
         );
     }
@@ -192,9 +263,20 @@ public final class EspRenderer {
         double minZ = box.minZ;
         double maxZ = box.maxZ;
 
-        double dx = Math.min((maxX - minX) * 0.28, 0.25);
-        double dy = Math.min((maxY - minY) * 0.20, 0.35);
-        double dz = Math.min((maxZ - minZ) * 0.28, 0.25);
+        double dx = Math.min(
+            (maxX - minX) * 0.28,
+            0.25
+        );
+
+        double dy = Math.min(
+            (maxY - minY) * 0.20,
+            0.35
+        );
+
+        double dz = Math.min(
+            (maxZ - minZ) * 0.28,
+            0.25
+        );
 
         for (int xi = 0; xi < 2; xi++) {
             for (int yi = 0; yi < 2; yi++) {
@@ -213,7 +295,9 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x + xDirection * dx, y, z
+                            x + xDirection * dx,
+                            y,
+                            z
                         ),
                         color,
                         2.5F
@@ -222,7 +306,9 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x, y + yDirection * dy, z
+                            x,
+                            y + yDirection * dy,
+                            z
                         ),
                         color,
                         2.5F
@@ -231,7 +317,9 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x, y, z + zDirection * dz
+                            x,
+                            y,
+                            z + zDirection * dz
                         ),
                         color,
                         2.5F
@@ -243,7 +331,10 @@ public final class EspRenderer {
 
     private static int healthColor(float percent) {
 
-        percent = Math.max(0.0F, Math.min(1.0F, percent));
+        percent = Math.max(
+            0.0F,
+            Math.min(1.0F, percent)
+        );
 
         int red = (int) (255 * (1.0F - percent));
         int green = (int) (255 * percent);
