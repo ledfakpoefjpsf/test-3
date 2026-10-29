@@ -3,8 +3,8 @@
   "schemaVersion": 1,
   "id": "nova-client",
   "version": "${version}",
-  "name": "Nova Client",
-  "description": "A customizable Minecraft Fabric client with modules, ClickGUI, HUD, and configuration support.",
+  "name": "Nova Nebula v3",
+  "description": "Nova Nebula v3 Minecraft Fabric client with ESP, Fullbright, ClickGUI, HUD, and customizable modules.",
   "authors": [
     "Nova Client"
   ],
@@ -16,6 +16,7 @@
     ]
   },
   "mixins": [
+    "nova-client.mixins.json",
     {
       "config": "nova-client.client.mixins.json",
       "environment": "client"
