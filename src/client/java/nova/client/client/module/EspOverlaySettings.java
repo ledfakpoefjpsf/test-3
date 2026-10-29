@@ -5,6 +5,8 @@ package nova.client.client.module;
 // @type: Client Settings
 // @location: src/client/java/nova/client/client/module/EspOverlaySettings.java
 
+import java.util.Locale;
+
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -12,7 +14,7 @@ public final class EspOverlaySettings {
 
     private static boolean names = true;
     private static boolean health = true;
-    private static boolean tracers = false;
+    private static boolean tracers = true;
 
     private EspOverlaySettings() {}
 
@@ -26,18 +28,6 @@ public final class EspOverlaySettings {
 
     public static boolean showTracers() {
         return tracers;
-    }
-
-    public static void setNames(boolean enabled) {
-        names = enabled;
-    }
-
-    public static void setHealth(boolean enabled) {
-        health = enabled;
-    }
-
-    public static void setTracers(boolean enabled) {
-        tracers = enabled;
     }
 
     public static void toggleNames() {
@@ -60,7 +50,6 @@ public final class EspOverlaySettings {
         if (entity instanceof LivingEntity living) {
             return Math.max(0, living.getHealth());
         }
-
         return 0;
     }
 
@@ -68,7 +57,6 @@ public final class EspOverlaySettings {
         if (entity instanceof LivingEntity living) {
             return Math.max(1, living.getMaxHealth());
         }
-
         return 1;
     }
 
@@ -85,7 +73,7 @@ public final class EspOverlaySettings {
         }
 
         return String.format(
-            java.util.Locale.ROOT,
+            Locale.ROOT,
             "%.1f / %.1f HP",
             getHealth(entity),
             getMaxHealth(entity)
