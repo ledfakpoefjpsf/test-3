@@ -16,6 +16,8 @@ public final class EspOverlaySettings {
     private static boolean health = true;
     private static boolean tracers = true;
 
+    private static float tracerThickness = 5.5F;
+
     private EspOverlaySettings() {}
 
     public static boolean showNames() {
@@ -42,6 +44,17 @@ public final class EspOverlaySettings {
         tracers = !tracers;
     }
 
+    public static float getTracerThickness() {
+        return tracerThickness;
+    }
+
+    public static void setTracerThickness(float value) {
+        tracerThickness = Math.max(
+            1.0F,
+            Math.min(10.0F, value)
+        );
+    }
+
     public static String getName(Entity entity) {
         return entity.getDisplayName().getString();
     }
@@ -50,7 +63,6 @@ public final class EspOverlaySettings {
         if (entity instanceof LivingEntity living) {
             return Math.max(0.0F, living.getHealth());
         }
-
         return 0.0F;
     }
 
@@ -58,7 +70,6 @@ public final class EspOverlaySettings {
         if (entity instanceof LivingEntity living) {
             return Math.max(1.0F, living.getMaxHealth());
         }
-
         return 1.0F;
     }
 
@@ -79,9 +90,8 @@ public final class EspOverlaySettings {
 
         return String.format(
             Locale.ROOT,
-            "%.1f / %.1f HP",
-            getHealth(entity),
-            getMaxHealth(entity)
+            "%.0f HP",
+            getHealth(entity)
         );
     }
 }
