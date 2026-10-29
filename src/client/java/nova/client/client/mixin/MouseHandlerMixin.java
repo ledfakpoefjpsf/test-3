@@ -23,8 +23,7 @@ public abstract class MouseHandlerMixin {
         cancellable = true
     )
     private void nova$freecamMouse(
-        double deltaX,
-        double deltaY,
+        double accumulatedDelta,
         CallbackInfo ci
     ) {
 
@@ -32,11 +31,8 @@ public abstract class MouseHandlerMixin {
             return;
         }
 
-        FreecamController.rotate(
-            deltaX * 0.15D,
-            deltaY * 0.15D
-        );
-
+        // Prevent the normal player rotation while
+        // Freecam is enabled.
         ci.cancel();
     }
 }
