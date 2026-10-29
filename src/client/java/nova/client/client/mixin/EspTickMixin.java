@@ -1,9 +1,9 @@
 
-package nova.client.mixin;
+package nova.client.client.mixin;
 
 // @name: EspTickMixin
 // @type: Client Mixin
-// @location: src/client/java/nova/client/mixin/EspTickMixin.java
+// @location: src/client/java/nova/client/client/mixin/EspTickMixin.java
 
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -60,7 +60,6 @@ public abstract class EspTickMixin {
         boolean mobsEnabled =
             mobEsp != null && mobEsp.isEnabled();
 
-        // Restore entities that should no longer glow.
         Iterator<Map.Entry<Entity, Boolean>> iterator =
             nova$originalGlow.entrySet().iterator();
 
@@ -89,7 +88,6 @@ public abstract class EspTickMixin {
             }
         }
 
-        // Apply glow to selected entities.
         for (Entity entity : mc.level.entitiesForRendering()) {
 
             if (!nova$shouldGlow(
