@@ -264,6 +264,14 @@ public final class ClickGuiScreen extends Screen {
             if (rightClick) {
                 String name = module.getName();
 
+                // COMBAT SETTINGS
+                if (module.getCategory() == Category.COMBAT) {
+                    Minecraft.getInstance().setScreen(
+                        new CombatSettingsScreen(this, name)
+                    );
+                    return;
+                }
+
                 // MACRO SETTINGS
                 if (name.equalsIgnoreCase("Macro Recorder")) {
                     Minecraft.getInstance().setScreen(
