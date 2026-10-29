@@ -22,34 +22,23 @@ public final class ModuleManager {
 
     private int afkTicks = 0;
 
-    // =========================================
-    // INITIALIZE ALL MODULES
-    // =========================================
-
     public void initialize() {
 
         modules.clear();
 
-        // =====================================
         // COMBAT
-        // =====================================
         CombatModules.register(this);
 
-        // =====================================
         // MOVEMENT
-        // =====================================
 
         register(new Module(
             "Auto Sprint",
             "Automatically sprint while moving forward",
             Category.MOVEMENT
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -57,7 +46,6 @@ public final class ModuleManager {
 
                 if (mc.player.input != null
                     && mc.player.input.getMoveVector().y > 0) {
-
                     mc.player.setSprinting(true);
                 }
             }
@@ -68,12 +56,9 @@ public final class ModuleManager {
             "Automatically walk forward",
             Category.MOVEMENT
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -84,11 +69,8 @@ public final class ModuleManager {
 
             @Override
             public void onDisable() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
-
-                mc.options.keyUp.setDown(false);
+                Minecraft.getInstance()
+                    .options.keyUp.setDown(false);
             }
         });
 
@@ -97,12 +79,9 @@ public final class ModuleManager {
             "Automatically sneak",
             Category.MOVEMENT
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -113,11 +92,8 @@ public final class ModuleManager {
 
             @Override
             public void onDisable() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
-
-                mc.options.keyShift.setDown(false);
+                Minecraft.getInstance()
+                    .options.keyShift.setDown(false);
             }
         });
 
@@ -126,186 +102,191 @@ public final class ModuleManager {
             "Automatically jump while moving",
             Category.MOVEMENT
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
                 }
 
-                if (mc.player.onGround()) {
+                if (mc.player.onGround()
+                    && mc.player.input != null
+                    && mc.player.input.getMoveVector()
+                        .lengthSquared() > 0) {
                     mc.player.jumpFromGround();
                 }
             }
         });
 
-        register(new Module(
-            "Step",
-            "Automatically step over small obstacles",
-            Category.MOVEMENT
-        ) {
+        // RENDER
 
+        register(new Module(
+            "Player ESP",
+            "Highlight other players with glowing outlines",
+            Category.RENDER
+        ) {});
+
+        register(new Module(
+            "Mob ESP",
+            "Highlight selected mobs with glowing outlines",
+            Category.RENDER
+        ) {
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
-
-                if (mc.player == null) {
-                    return;
-                }
-
-                mc.player.setMaxUpStep(1.0f);
+                MobEspSettings.tick();
             }
 
             @Override
             public void onDisable() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
-
-                if (mc.player != null) {
-                    mc.player.setMaxUpStep(0.6f);
-                }
+                MobEspSettings.clear();
             }
         });
 
-        // =====================================
-        // RENDER
-        // =====================================
+        register(new Module(
+            "Freecam",
+            "Fly the camera without moving your player",
+            Category.RENDER
+        ) {
+            @Override
+            public void onEnable() {
+                FreecamController.enable();
+            }
+
+            @Override
+            public void onTick() {
+                FreecamController.tick();
+            }
+
+            @Override
+            public void onDisable() {
+                FreecamController.disable();
+            }
+        });
+
+        register(new Module(
+            "Coordinates HUD",
+            "Display your current coordinates",
+            Category.RENDER
+        ) {});
+
+        register(new Module(
+            "FPS HUD",
+            "Display your current FPS",
+            Category.RENDER
+        ) {});
+
+        register(new Module(
+            "Armor HUD",
+            "Display equipped armor and durability",
+            Category.RENDER
+        ) {});
+
+        register(new Module(
+            "FOV Changer",
+            "Change your field of view",
+            Category.RENDER
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFov();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.tickFov();
+            }
+        });
+
+        register(new Module(
+            "Zoom",
+            "Hold C to zoom in",
+            Category.RENDER
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFov();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.tickFov();
+            }
+        });
 
         register(new Module(
             "Fullbright",
-            "Makes dark areas easier to see",
+            "Brighten dark areas using the lightmap",
             Category.RENDER
-        ) {});
+        ) {
+            @Override
+            public void onTick() {
+                VisualModules.tickFullbright();
+            }
+
+            @Override
+            public void onDisable() {
+                VisualModules.disableFullbright();
+            }
+        });
 
         register(new Module(
-            "Entity ESP",
-            "Highlights entities through walls",
+            "No Fog",
+            "Toggle Minecraft's fog rendering",
             Category.RENDER
-        ) {});
+        ) {
+            @Override
+            public void onEnable() {
+                VisualModules.enableNoFog();
+            }
 
-        register(new Module(
-            "Block ESP",
-            "Highlights selected blocks",
-            Category.RENDER
-        ) {});
+            @Override
+            public void onDisable() {
+                VisualModules.disableNoFog();
+            }
+        });
 
-        register(new Module(
-            "Tracers",
-            "Draws lines toward entities",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Name Tags",
-            "Displays enhanced entity name tags",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Freecam",
-            "Move your camera independently",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Minimap",
-            "Displays a small map of your surroundings",
-            Category.RENDER
-        ) {});
-
-        register(new Module(
-            "Entity Radar",
-            "Shows nearby entities on a radar",
-            Category.RENDER
-        ) {});
-
-        // =====================================
         // PLAYER
-        // =====================================
 
         register(new Module(
             "Auto Respawn",
             "Automatically respawn after dying",
             Category.PLAYER
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player != null
                     && mc.player.isDeadOrDying()) {
-
                     mc.player.respawn();
                 }
             }
         });
 
+        // MISC
+
         register(new Module(
-            "Auto Eat",
-            "Automatically eat food when hungry",
-            Category.PLAYER
+            "Macro Recorder",
+            "Record, save and replay named macros (right-click for settings)",
+            Category.MISC
         ) {
-
-            @Override
-            public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
-
-                if (mc.player == null || mc.screen != null) {
-                    return;
-                }
-
-                if (mc.player.getFoodData()
-                        .getFoodLevel() < 14) {
-
-                    if (mc.player.getMainHandItem()
-                            .getFoodProperties(mc.player) != null) {
-
-                        mc.options.keyUse.setDown(true);
-                    }
-                }
-            }
-
             @Override
             public void onDisable() {
-
-                Minecraft.getInstance()
-                    .options.keyUse.setDown(false);
+                MacroEngine.stop(
+                    Minecraft.getInstance()
+                );
             }
         });
 
         register(new Module(
-            "Auto Fish",
-            "Automatically use a fishing rod",
-            Category.PLAYER
-        ) {});
-
-        // =====================================
-        // MISC
-        // =====================================
-
-        register(new Module(
             "Anti AFK",
-            "Prevents being marked as inactive",
+            "Periodically swing to prevent inactivity",
             Category.MISC
         ) {
-
             @Override
             public void onTick() {
-
-                Minecraft mc =
-                    Minecraft.getInstance();
+                Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -313,76 +294,68 @@ public final class ModuleManager {
 
                 afkTicks++;
 
-                if (afkTicks >= 200) {
-
-                    afkTicks = 0;
-
+                if (afkTicks >= 600) {
                     mc.player.swing(
                         InteractionHand.MAIN_HAND
                     );
+
+                    afkTicks = 0;
                 }
             }
-        });
-
-        register(new Module(
-            "Coordinates",
-            "Displays player coordinates",
-            Category.MISC
-        ) {});
-
-        register(new Module(
-            "FPS Counter",
-            "Displays current FPS",
-            Category.MISC
-        ) {});
-
-        register(new Module(
-            "CPS Counter",
-            "Displays clicks per second",
-            Category.MISC
-        ) {});
-
-        register(new Module(
-            "Macros",
-            "Runs configured macros",
-            Category.MISC
-        ) {
 
             @Override
-            public void onTick() {
-
-                MacroEngine.tick();
+            public void onDisable() {
+                afkTicks = 0;
             }
         });
-    }
 
-    // =========================================
-    // MODULE MANAGEMENT
-    // =========================================
+        register(new Module(
+            "Notifications",
+            "Show module toggle notifications",
+            Category.MISC
+        ) {});
+
+        System.out.println(
+            "[Nova Client] Registered "
+                + modules.size()
+                + " modules."
+        );
+    }
 
     public void register(Module module) {
+        if (module != null) {
+            modules.add(module);
+        }
+    }
 
-        if (module == null) {
-            return;
+    public void tick() {
+        for (Module module : modules) {
+            if (module.isEnabled()) {
+                module.onTick();
+            }
         }
 
-        modules.add(module);
+        VisualModules.tickFov();
     }
 
-    public List<Module> getModules() {
-
-        return Collections.unmodifiableList(modules);
-    }
-
-    public List<Module> getByCategory(
-        Category category
-    ) {
-
-        List<Module> result =
-            new ArrayList<>();
+    public Module getByName(String name) {
+        if (name == null) {
+            return null;
+        }
 
         for (Module module : modules) {
+            if (module.getName().equalsIgnoreCase(name)) {
+                return module;
+            }
+        }
 
+        return null;
+    }
+
+    public List<Module> getByCategory(Category category) {
+        List<Module> result = new ArrayList<>();
+
+        for (Module module : modules) {
             if (module.getCategory() == category) {
                 result.add(module);
             }
@@ -391,37 +364,42 @@ public final class ModuleManager {
         return result;
     }
 
-    public Module getByName(String name) {
-
-        for (Module module : modules) {
-
-            if (module.getName()
-                    .equalsIgnoreCase(name)) {
-
-                return module;
-            }
-        }
-
-        return null;
+    public List<Module> getModules() {
+        return Collections.unmodifiableList(modules);
     }
 
-    public void tick() {
-
-        for (Module module : modules) {
-
-            if (module.isEnabled()) {
-                module.onTick();
-            }
-        }
+    public List<Module> getAll() {
+        return getModules();
     }
 
-    public void disableAll() {
+    public void toggleModule(Module module) {
+        if (module == null) {
+            return;
+        }
 
-        for (Module module : modules) {
+        module.toggle();
 
-            if (module.isEnabled()) {
-                module.setEnabled(false);
-            }
+        Minecraft mc = Minecraft.getInstance();
+
+        Module notifications =
+            getByName("Notifications");
+
+        if (mc.player != null
+            && notifications != null
+            && notifications.isEnabled()) {
+
+            String status =
+                module.isEnabled() ? "ON" : "OFF";
+
+            mc.player.displayClientMessage(
+                Component.literal(
+                    "[Nova] "
+                        + module.getName()
+                        + ": "
+                        + status
+                ),
+                true
+            );
         }
     }
 }
