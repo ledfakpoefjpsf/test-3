@@ -23,26 +23,19 @@ public abstract class CameraMixin {
     protected abstract void setPosition(Vec3 position);
 
     @Shadow
-    protected abstract void setRotation(
-        float yaw,
-        float pitch
-    );
+    protected abstract void setRotation(float yaw, float pitch);
 
     @Inject(
         method = "setup",
         at = @At("TAIL")
     )
-    private void nova$applyFreecam(
-        CallbackInfo ci
-    ) {
+    private void nova$applyFreecam(CallbackInfo ci) {
 
         if (!FreecamController.isActive()) {
             return;
         }
 
-        setPosition(
-            FreecamController.getPosition()
-        );
+        setPosition(FreecamController.getPosition());
 
         setRotation(
             FreecamController.getYaw(),
