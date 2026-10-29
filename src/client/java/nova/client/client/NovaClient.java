@@ -8,6 +8,7 @@ package nova.client.client;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
@@ -15,6 +16,7 @@ import nova.client.client.gui.NovaHud;
 import nova.client.client.macro.MacroEngine;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
+import nova.client.client.module.FreecamController;
 import nova.client.client.config.ConfigManager;
 import nova.client.client.render.EspRenderer;
 
@@ -37,26 +39,50 @@ public final class NovaClient implements ClientModInitializer {
             "[Nova Client] Starting Nova Nebula v3..."
         );
 
+        // =====================================
+        // INITIALIZE MODULES AND CONFIG
+        // =====================================
+
         MODULES.initialize();
         CONFIG.load();
+
+        // =====================================
+        // INITIALIZE HUD
+        // =====================================
+
         NovaHud.initialize();
 
-        // Keep gameplay systems on client ticks.
-        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+        // =====================================
+        // CLIENT TICK
+        // =====================================
 
-            MODULES.tick();
-            handleMacro(client);
-            handleGuiKey(client);
+        ClientTickEvents.END_CLIENT_TICK.register(
+            client -> {
 
-        });
+                MODULES.tick();
 
-        // NEW: Submit ESP visuals during frame extraction.
-        // Do not also call EspRenderer.tick() above.
-        WorldRenderEvents.END_EXTRACTION.register(context -> {
+                handleMacro(client);
+                handleGuiKey(client);
+            }
+        );
 
-            EspRenderer.render(Minecraft.getInstance());
+        // =====================================
+        // WORLD RENDER
+        // KEEP SMOOTH ESP RENDERING
+        // =====================================
 
-        });
+        WorldRenderEvents.END_EXTRACTION.register(
+            context -> {
+
+                EspRenderer.render(
+                    Minecraft.getInstance()
+                );
+            }
+        );
+
+        // =====================================
+        // SAVE CONFIG ON SHUTDOWN
+        // =====================================
 
         Runtime.getRuntime().addShutdownHook(
             new Thread(
@@ -65,8 +91,14 @@ public final class NovaClient implements ClientModInitializer {
             )
         );
 
-        System.out.println("[Nova Client] Initialized!");
+        System.out.println(
+            "[Nova Client] Initialized!"
+        );
     }
+
+    // =========================================
+    // MACRO HANDLING
+    // =========================================
 
     private static void handleMacro(Minecraft client) {
 
@@ -74,11 +106,18 @@ public final class NovaClient implements ClientModInitializer {
             MODULES.getByName("Macro Recorder");
 
         if (macro != null && macro.isEnabled()) {
+
             MacroEngine.tick(client);
+
         } else {
+
             MacroEngine.stop(client);
         }
     }
+
+    // =========================================
+    // CLICK GUI KEY HANDLING
+    // =========================================
 
     private static void handleGuiKey(Minecraft client) {
 
@@ -88,18 +127,22 @@ public final class NovaClient implements ClientModInitializer {
 
         long window = client.getWindow().handle();
 
-        boolean keyDown =
-            GLFW.glfwGetKey(
-                window,
-                GLFW.GLFW_KEY_RIGHT_SHIFT
-            ) == GLFW.GLFW_PRESS;
+        boolean keyDown = GLFW.glfwGetKey(
+            window,
+            GLFW.GLFW_KEY_RIGHT_SHIFT
+        ) == GLFW.GLFW_PRESS;
 
         if (keyDown && !guiKeyWasDown) {
 
             if (client.screen instanceof ClickGuiScreen) {
+
                 client.setScreen(null);
+
             } else if (client.screen == null) {
-                client.setScreen(new ClickGuiScreen());
+
+                client.setScreen(
+                    new ClickGuiScreen()
+                );
             }
         }
 
