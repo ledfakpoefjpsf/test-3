@@ -7,7 +7,6 @@ package nova.client.client.render;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.gizmos.Gizmos;
-import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.TextGizmo;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -52,7 +51,14 @@ public final class EspRenderer {
             return;
         }
 
-        Vec3 tracerStart = mc.player.getEyePosition();
+        // CHANGED:
+        // Tracers now start at the center of your body,
+        // rather than your eyes.
+        Vec3 tracerStart = mc.player.position().add(
+            0.0,
+            mc.player.getBbHeight() * 0.5,
+            0.0
+        );
 
         for (Entity entity : mc.level.entitiesForRendering()) {
 
@@ -63,7 +69,9 @@ public final class EspRenderer {
             boolean isPlayer = entity instanceof Player;
 
             if (isPlayer) {
-                if (!showPlayers) continue;
+                if (!showPlayers) {
+                    continue;
+                }
             } else {
                 if (!showMobs
                         || !MobEspSettings.shouldGlow(entity)) {
@@ -78,7 +86,7 @@ public final class EspRenderer {
             // Nova Competitive corner brackets
             drawCorners(box, color);
 
-            // Compact nameplate
+            // Entity names
             if (EspOverlaySettings.showNames()) {
 
                 Vec3 namePosition = new Vec3(
@@ -96,20 +104,21 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
-            // Vertical health bar and HP text
+            // Health bar and HP text
             if (EspOverlaySettings.showHealth()
                     && entity instanceof LivingEntity) {
 
                 float percent =
                     EspOverlaySettings.getHealthPercent(entity);
 
-                int healthColor = healthColor(percent);
+                int hpColor = healthColor(percent);
 
                 double barX = box.minX - 0.12;
                 double barZ = box.minZ;
                 double bottom = box.minY;
                 double top = box.maxY;
 
+                // Health bar background
                 Gizmos.line(
                     new Vec3(barX, bottom, barZ),
                     new Vec3(barX, top, barZ),
@@ -117,6 +126,7 @@ public final class EspRenderer {
                     6.0F
                 ).setAlwaysOnTop();
 
+                // Health bar fill
                 if (percent > 0.0F) {
                     Gizmos.line(
                         new Vec3(barX, bottom, barZ),
@@ -125,11 +135,12 @@ public final class EspRenderer {
                             bottom + (top - bottom) * percent,
                             barZ
                         ),
-                        healthColor,
+                        hpColor,
                         4.0F
                     ).setAlwaysOnTop();
                 }
 
+                // HP text
                 Vec3 hpPosition = new Vec3(
                     box.getCenter().x,
                     box.maxY + (
@@ -143,12 +154,12 @@ public final class EspRenderer {
                     EspOverlaySettings.getHealthText(entity),
                     hpPosition,
                     TextGizmo.Style
-                        .forColorAndCentered(healthColor)
+                        .forColorAndCentered(hpColor)
                         .withScale(0.7F)
                 ).setAlwaysOnTop();
             }
 
-            // Adjustable tracer
+            // Adjustable tracer line
             if (EspOverlaySettings.showTracers()) {
 
                 Vec3 target = box.getCenter();
@@ -187,7 +198,7 @@ public final class EspRenderer {
             0.25
         );
 
-        // Eight corners, each with three short edges
+        // Draw all eight 3D corners
         for (int xi = 0; xi < 2; xi++) {
             for (int yi = 0; yi < 2; yi++) {
                 for (int zi = 0; zi < 2; zi++) {
@@ -249,6 +260,8 @@ public final class EspRenderer {
         int red = (int) (255 * (1.0F - percent));
         int green = (int) (255 * percent);
 
-        return 0xFF000000 | (red << 16) | (green << 8);
+        return 0xFF000000
+            | (red << 16)
+            | (green << 8);
     }
 }
