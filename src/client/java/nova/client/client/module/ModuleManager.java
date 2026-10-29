@@ -17,8 +17,7 @@ import nova.client.client.macro.MacroEngine;
 
 public final class ModuleManager {
 
-    private final List<Module> modules =
-        new ArrayList<>();
+    private final List<Module> modules = new ArrayList<>();
 
     private int afkTicks = 0;
 
@@ -26,10 +25,20 @@ public final class ModuleManager {
 
         modules.clear();
 
-        // COMBAT
+        // ========================================
+        // COMBAT MODULES
+        // ========================================
+
         CombatModules.register(this);
 
-        // MOVEMENT
+        // ========================================
+        // MOVEMENT MODULES
+        // ========================================
+
+        // Register all 15 new movement modules.
+        MovementModules.register(this);
+
+        // Existing movement modules stay below.
 
         register(new Module(
             "Auto Sprint",
@@ -46,6 +55,7 @@ public final class ModuleManager {
 
                 if (mc.player.input != null
                     && mc.player.input.getMoveVector().y > 0) {
+
                     mc.player.setSprinting(true);
                 }
             }
@@ -114,12 +124,15 @@ public final class ModuleManager {
                     && mc.player.input != null
                     && mc.player.input.getMoveVector()
                         .lengthSquared() > 0) {
+
                     mc.player.jumpFromGround();
                 }
             }
         });
 
-        // RENDER
+        // ========================================
+        // RENDER MODULES
+        // ========================================
 
         register(new Module(
             "Player ESP",
@@ -246,7 +259,9 @@ public final class ModuleManager {
             }
         });
 
-        // PLAYER
+        // ========================================
+        // PLAYER MODULES
+        // ========================================
 
         register(new Module(
             "Auto Respawn",
@@ -259,16 +274,19 @@ public final class ModuleManager {
 
                 if (mc.player != null
                     && mc.player.isDeadOrDying()) {
+
                     mc.player.respawn();
                 }
             }
         });
 
-        // MISC
+        // ========================================
+        // MISC MODULES
+        // ========================================
 
         register(new Module(
             "Macro Recorder",
-            "Record, save and replay named macros (right-click for settings)",
+            "Record, save and replay named macros",
             Category.MISC
         ) {
             @Override
@@ -295,6 +313,7 @@ public final class ModuleManager {
                 afkTicks++;
 
                 if (afkTicks >= 600) {
+
                     mc.player.swing(
                         InteractionHand.MAIN_HAND
                     );
@@ -315,6 +334,10 @@ public final class ModuleManager {
             Category.MISC
         ) {});
 
+        // ========================================
+        // FINISH REGISTRATION
+        // ========================================
+
         System.out.println(
             "[Nova Client] Registered "
                 + modules.size()
@@ -322,13 +345,22 @@ public final class ModuleManager {
         );
     }
 
+    // ========================================
+    // REGISTER MODULE
+    // ========================================
+
     public void register(Module module) {
         if (module != null) {
             modules.add(module);
         }
     }
 
+    // ========================================
+    // UPDATE ENABLED MODULES
+    // ========================================
+
     public void tick() {
+
         for (Module module : modules) {
             if (module.isEnabled()) {
                 module.onTick();
@@ -338,7 +370,12 @@ public final class ModuleManager {
         VisualModules.tickFov();
     }
 
+    // ========================================
+    // FIND MODULE BY NAME
+    // ========================================
+
     public Module getByName(String name) {
+
         if (name == null) {
             return null;
         }
@@ -352,7 +389,12 @@ public final class ModuleManager {
         return null;
     }
 
+    // ========================================
+    // GET MODULES BY CATEGORY
+    // ========================================
+
     public List<Module> getByCategory(Category category) {
+
         List<Module> result = new ArrayList<>();
 
         for (Module module : modules) {
@@ -364,6 +406,10 @@ public final class ModuleManager {
         return result;
     }
 
+    // ========================================
+    // GET ALL MODULES
+    // ========================================
+
     public List<Module> getModules() {
         return Collections.unmodifiableList(modules);
     }
@@ -372,7 +418,12 @@ public final class ModuleManager {
         return getModules();
     }
 
+    // ========================================
+    // TOGGLE MODULE
+    // ========================================
+
     public void toggleModule(Module module) {
+
         if (module == null) {
             return;
         }
