@@ -1,26 +1,46 @@
 package nova.client.client.gui;
 
 // @name: XraySettingsScreen
-// @type: Client GUI Screen
+// @type: Java Client GUI
 // @location: src/client/java/nova/client/client/gui/XraySettingsScreen.java
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import nova.client.client.NovaClient;
 import nova.client.client.module.XraySettings;
-import nova.client.client.render.XrayRenderer;
+import nova.client.client.render.XrayChunkRefresh;
 
 public final class XraySettingsScreen extends Screen {
 
+    private static final int PANEL_WIDTH = 350;
+    private static final int PANEL_HEIGHT = 445;
+
     private static final int PANEL = 0xF0171024;
     private static final int HEADER = 0xFF422663;
-    private static final int ACTIVE = 0xFF674091;
-    private static final int INACTIVE = 0xFF30253C;
     private static final int WHITE = 0xFFF4EAFF;
     private static final int PURPLE = 0xFFC084FC;
+    private static final int MUTED = 0xFFB6A7C7;
+
+    private static final String[] BLOCK_NAMES = {
+        "Bedrock",
+        "Lava",
+        "Water",
+        "Diamond",
+        "Ancient Debris",
+        "Emerald",
+        "Gold",
+        "Iron",
+        "Redstone",
+        "Lapis",
+        "Copper",
+        "Coal",
+        "Nether Quartz"
+    };
 
     private final Screen parent;
 
@@ -30,11 +50,14 @@ public final class XraySettingsScreen extends Screen {
     }
 
     private int left() {
-        return (width - 350) / 2;
+        return (width - PANEL_WIDTH) / 2;
     }
 
     private int top() {
-        return Math.max(12, (height - 445) / 2);
+        return Math.max(
+            12,
+            (height - PANEL_HEIGHT) / 2
+        );
     }
 
     @Override
@@ -44,67 +67,49 @@ public final class XraySettingsScreen extends Screen {
         int y = top();
 
         addRenderableWidget(
-            net.minecraft.client.gui.components.Button
-                .builder(
-                    Component.literal("Back"),
-                    button -> onClose()
-                )
-                .bounds(x + 275, y + 8, 65, 20)
-                .build()
+            Button.builder(
+                Component.literal("Back"),
+                button -> onClose()
+            )
+            .bounds(x + 275, y + 8, 65, 20)
+            .build()
         );
 
-        String[] names = {
-            "Bedrock",
-            "Lava",
-            "Water",
-            "Diamond",
-            "Ancient Debris",
-            "Emerald",
-            "Gold",
-            "Iron",
-            "Redstone",
-            "Lapis",
-            "Copper",
-            "Coal",
-            "Nether Quartz"
-        };
-
-        for (int i = 0; i < names.length; i++) {
+        // Individual block selection buttons.
+        for (int i = 0; i < BLOCK_NAMES.length; i++) {
 
             final int index = i;
 
-            int col = i % 2;
+            int column = i % 2;
             int row = i / 2;
 
-            int bx = x + 10 + col * 170;
+            int bx = x + 10 + column * 170;
             int by = y + 43 + row * 33;
 
             addRenderableWidget(
-                net.minecraft.client.gui.components.Button
-                    .builder(
-                        Component.literal(
-                            buttonLabel(index)
-                        ),
-                        button -> {
+                Button.builder(
+                    Component.literal(buttonLabel(index)),
+                    button -> {
 
-                            toggle(index);
+                        toggleBlock(index);
 
-                            button.setMessage(
-                                Component.literal(
-                                    buttonLabel(index)
-                                )
-                            );
+                        button.setMessage(
+                            Component.literal(
+                                buttonLabel(index)
+                            )
+                        );
 
-                            save();
-                        }
-                    )
-                    .bounds(bx, by, 160, 26)
-                    .build()
+                        settingsChanged();
+                    }
+                )
+                .bounds(bx, by, 160, 26)
+                .build()
             );
         }
 
+        // Scan range slider.
         addRenderableWidget(
-            new net.minecraft.client.gui.components.AbstractSliderButton(
+            new AbstractSliderButton(
                 x + 12,
                 y + 291,
                 326,
@@ -115,11 +120,14 @@ public final class XraySettingsScreen extends Screen {
 
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal(
-                        "Scan Range: "
+
+                    setMessage(
+                        Component.literal(
+                            "Scan Range: "
                             + XraySettings.range
                             + " blocks"
-                    ));
+                        )
+                    );
                 }
 
                 @Override
@@ -127,18 +135,18 @@ public final class XraySettingsScreen extends Screen {
 
                     XraySettings.setRange(
                         16 + (int) Math.round(
-                            value * 112
+                            value * 112.0
                         )
                     );
 
-                    XrayRenderer.clear();
-                    save();
+                    settingsChanged();
                 }
             }
         );
 
+        // Terrain opacity slider.
         addRenderableWidget(
-            new net.minecraft.client.gui.components.AbstractSliderButton(
+            new AbstractSliderButton(
                 x + 12,
                 y + 327,
                 326,
@@ -149,67 +157,65 @@ public final class XraySettingsScreen extends Screen {
 
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal(
-                        "Hidden Terrain Opacity: "
+
+                    setMessage(
+                        Component.literal(
+                            "Hidden Terrain Opacity: "
                             + XraySettings.hiddenOpacity
                             + "%"
-                    ));
+                        )
+                    );
                 }
 
                 @Override
                 protected void applyValue() {
 
                     XraySettings.setHiddenOpacity(
-                        (int) Math.round(value * 60)
+                        (int) Math.round(
+                            value * 60.0
+                        )
                     );
 
-                    save();
+                    settingsChanged();
                 }
             }
         );
 
+        // Restore original selections.
         addRenderableWidget(
-            net.minecraft.client.gui.components.Button
-                .builder(
-                    Component.literal("Reset Defaults"),
-                    button -> {
+            Button.builder(
+                Component.literal("Reset Defaults"),
+                button -> {
 
-                        XraySettings.reset();
-                        XrayRenderer.clear();
-                        save();
+                    XraySettings.reset();
 
-                        Minecraft.getInstance().setScreen(
-                            new XraySettingsScreen(parent)
-                        );
-                    }
-                )
-                .bounds(
-                    x + 12,
-                    y + 365,
-                    326,
-                    22
-                )
-                .build()
+                    settingsChanged();
+
+                    Minecraft.getInstance().setScreen(
+                        new XraySettingsScreen(parent)
+                    );
+                }
+            )
+            .bounds(x + 12, y + 365, 326, 22)
+            .build()
         );
     }
 
     private String buttonLabel(int index) {
 
-        String[] names = {
-            "Bedrock", "Lava", "Water",
-            "Diamond", "Ancient Debris",
-            "Emerald", "Gold", "Iron",
-            "Redstone", "Lapis", "Copper",
-            "Coal", "Nether Quartz"
-        };
+        if (index < 0 || index >= BLOCK_NAMES.length) {
+            return "Unknown";
+        }
 
-        return names[index] + ": "
-            + (enabled(index) ? "ON" : "OFF");
+        return BLOCK_NAMES[index]
+            + ": "
+            + (isEnabled(index) ? "ON" : "OFF");
     }
 
-    private boolean enabled(int index) {
+    private boolean isEnabled(int index) {
 
         return switch (index) {
+
             case 0 -> XraySettings.bedrock;
             case 1 -> XraySettings.lava;
             case 2 -> XraySettings.water;
@@ -223,33 +229,66 @@ public final class XraySettingsScreen extends Screen {
             case 10 -> XraySettings.copper;
             case 11 -> XraySettings.coal;
             case 12 -> XraySettings.quartz;
+
             default -> false;
         };
     }
 
-    private void toggle(int index) {
+    private void toggleBlock(int index) {
 
         switch (index) {
-            case 0 -> XraySettings.bedrock ^= true;
-            case 1 -> XraySettings.lava ^= true;
-            case 2 -> XraySettings.water ^= true;
-            case 3 -> XraySettings.diamond ^= true;
-            case 4 -> XraySettings.ancient ^= true;
-            case 5 -> XraySettings.emerald ^= true;
-            case 6 -> XraySettings.gold ^= true;
-            case 7 -> XraySettings.iron ^= true;
-            case 8 -> XraySettings.redstone ^= true;
-            case 9 -> XraySettings.lapis ^= true;
-            case 10 -> XraySettings.copper ^= true;
-            case 11 -> XraySettings.coal ^= true;
-            case 12 -> XraySettings.quartz ^= true;
-            default -> {}
-        }
 
-        XrayRenderer.clear();
+            case 0 ->
+                XraySettings.bedrock = !XraySettings.bedrock;
+
+            case 1 ->
+                XraySettings.lava = !XraySettings.lava;
+
+            case 2 ->
+                XraySettings.water = !XraySettings.water;
+
+            case 3 ->
+                XraySettings.diamond = !XraySettings.diamond;
+
+            case 4 ->
+                XraySettings.ancient = !XraySettings.ancient;
+
+            case 5 ->
+                XraySettings.emerald = !XraySettings.emerald;
+
+            case 6 ->
+                XraySettings.gold = !XraySettings.gold;
+
+            case 7 ->
+                XraySettings.iron = !XraySettings.iron;
+
+            case 8 ->
+                XraySettings.redstone = !XraySettings.redstone;
+
+            case 9 ->
+                XraySettings.lapis = !XraySettings.lapis;
+
+            case 10 ->
+                XraySettings.copper = !XraySettings.copper;
+
+            case 11 ->
+                XraySettings.coal = !XraySettings.coal;
+
+            case 12 ->
+                XraySettings.quartz = !XraySettings.quartz;
+
+            default -> {
+            }
+        }
     }
 
-    private void save() {
+    private void settingsChanged() {
+
+        // Request the terrain to be rebuilt using
+        // the current X-Ray settings.
+        XrayChunkRefresh.requestRefresh();
+
+        // Persist block filters and slider values.
         NovaClient.CONFIG.save();
     }
 
@@ -262,28 +301,40 @@ public final class XraySettingsScreen extends Screen {
     ) {
 
         graphics.fill(
-            0, 0, width, height,
+            0,
+            0,
+            width,
+            height,
             0xD0090612
         );
 
         int x = left();
         int y = top();
 
+        // Outer border.
         graphics.fill(
-            x - 1, y - 1,
-            x + 351, y + 446,
+            x - 1,
+            y - 1,
+            x + PANEL_WIDTH + 1,
+            y + PANEL_HEIGHT + 1,
             PURPLE
         );
 
+        // Main background.
         graphics.fill(
-            x, y,
-            x + 350, y + 445,
+            x,
+            y,
+            x + PANEL_WIDTH,
+            y + PANEL_HEIGHT,
             PANEL
         );
 
+        // Header.
         graphics.fill(
-            x, y,
-            x + 350, y + 34,
+            x,
+            y,
+            x + PANEL_WIDTH,
+            y + 34,
             HEADER
         );
 
@@ -298,7 +349,7 @@ public final class XraySettingsScreen extends Screen {
 
         graphics.drawString(
             font,
-            "Block filters",
+            "Block Filters",
             x + 12,
             y + 275,
             PURPLE,
@@ -307,7 +358,7 @@ public final class XraySettingsScreen extends Screen {
 
         graphics.drawString(
             font,
-            "Outlines are visible through terrain.",
+            "Selected blocks stay visible.",
             x + 12,
             y + 405,
             WHITE,
@@ -316,19 +367,26 @@ public final class XraySettingsScreen extends Screen {
 
         graphics.drawString(
             font,
-            "Opacity requires transparent-terrain rendering.",
+            "Opacity requires the terrain X-Ray renderer.",
             x + 12,
             y + 419,
-            0xFFB6A7C7,
+            MUTED,
             false
         );
 
-        super.render(graphics, mouseX, mouseY, delta);
+        super.render(
+            graphics,
+            mouseX,
+            mouseY,
+            delta
+        );
     }
 
     @Override
     public void onClose() {
-        save();
+
+        NovaClient.CONFIG.save();
+
         Minecraft.getInstance().setScreen(parent);
     }
 
