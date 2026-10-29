@@ -30,8 +30,7 @@ public final class EspRenderer {
 
     public static void tick(Minecraft mc) {
 
-        if (mc == null || mc.level == null
-                || mc.player == null) {
+        if (mc == null || mc.level == null || mc.player == null) {
             return;
         }
 
@@ -66,20 +65,17 @@ public final class EspRenderer {
                     continue;
                 }
             } else {
-                if (!showMobs
-                        || !MobEspSettings.shouldGlow(entity)) {
+                if (!showMobs ||
+                        !MobEspSettings.shouldGlow(entity)) {
                     continue;
                 }
             }
 
             AABB box = entity.getBoundingBox().inflate(0.05);
-
             int color = isPlayer ? CYAN : PURPLE;
 
-            // Keep Nova Competitive corner brackets
             drawCorners(box, color);
 
-            // Entity names
             if (EspOverlaySettings.showNames()) {
 
                 Vec3 namePosition = new Vec3(
@@ -97,7 +93,6 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
-            // Health bar and HP text
             if (EspOverlaySettings.showHealth()
                     && entity instanceof LivingEntity) {
 
@@ -149,14 +144,11 @@ public final class EspRenderer {
                 ).setAlwaysOnTop();
             }
 
-            // Tracer with adjusted origin
             if (EspOverlaySettings.showTracers()) {
-
-                Vec3 target = box.getCenter();
 
                 Gizmos.line(
                     tracerStart,
-                    target,
+                    box.getCenter(),
                     color,
                     EspOverlaySettings.getTracerThickness()
                 ).setAlwaysOnTop();
@@ -165,28 +157,25 @@ public final class EspRenderer {
     }
 
     /**
-     * Choose the tracer starting point based on
-     * the current camera perspective.
+     * Tracer origin:
+     * First-person: below the player's eye position.
+     * Third-person: middle of the player's body.
+     *
+     * Uses methods already available in the project.
      */
     private static Vec3 getTracerStart(Minecraft mc) {
 
         if (mc.options.getCameraType().isFirstPerson()) {
 
-            // Start below the camera, rather than at eye level.
-            // This is a world-space approximation of a
-            // lower-screen tracer origin.
-            Vec3 cameraPos =
-                mc.gameRenderer.getMainCamera().getPosition();
+            // Lower than eye level, slightly forward.
+            Vec3 eyes = mc.player.getEyePosition();
+            Vec3 forward = mc.player.getLookAngle();
 
-            Vec3 look =
-                mc.gameRenderer.getMainCamera().getLookVector();
-
-            return cameraPos
+            return eyes
                 .add(0.0, -0.65, 0.0)
-                .add(look.scale(0.30));
+                .add(forward.scale(0.30));
         }
 
-        // Third-person: start at player waist height.
         return mc.player.position().add(
             0.0,
             mc.player.getBbHeight() * 0.5,
@@ -203,20 +192,9 @@ public final class EspRenderer {
         double minZ = box.minZ;
         double maxZ = box.maxZ;
 
-        double dx = Math.min(
-            (maxX - minX) * 0.28,
-            0.25
-        );
-
-        double dy = Math.min(
-            (maxY - minY) * 0.20,
-            0.35
-        );
-
-        double dz = Math.min(
-            (maxZ - minZ) * 0.28,
-            0.25
-        );
+        double dx = Math.min((maxX - minX) * 0.28, 0.25);
+        double dy = Math.min((maxY - minY) * 0.20, 0.35);
+        double dz = Math.min((maxZ - minZ) * 0.28, 0.25);
 
         for (int xi = 0; xi < 2; xi++) {
             for (int yi = 0; yi < 2; yi++) {
@@ -235,9 +213,7 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x + xDirection * dx,
-                            y,
-                            z
+                            x + xDirection * dx, y, z
                         ),
                         color,
                         2.5F
@@ -246,9 +222,7 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x,
-                            y + yDirection * dy,
-                            z
+                            x, y + yDirection * dy, z
                         ),
                         color,
                         2.5F
@@ -257,9 +231,7 @@ public final class EspRenderer {
                     Gizmos.line(
                         corner,
                         new Vec3(
-                            x,
-                            y,
-                            z + zDirection * dz
+                            x, y, z + zDirection * dz
                         ),
                         color,
                         2.5F
@@ -271,10 +243,7 @@ public final class EspRenderer {
 
     private static int healthColor(float percent) {
 
-        percent = Math.max(
-            0.0F,
-            Math.min(1.0F, percent)
-        );
+        percent = Math.max(0.0F, Math.min(1.0F, percent));
 
         int red = (int) (255 * (1.0F - percent));
         int green = (int) (255 * percent);
