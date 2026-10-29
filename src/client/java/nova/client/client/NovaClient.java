@@ -15,6 +15,7 @@ import nova.client.client.macro.MacroEngine;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
 import nova.client.client.config.ConfigManager;
+import nova.client.client.render.EspRenderer;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -31,7 +32,9 @@ public final class NovaClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
 
-        System.out.println("[Nova Client] Starting Nova Nebula v3...");
+        System.out.println(
+            "[Nova Client] Starting Nova Nebula v3..."
+        );
 
         MODULES.initialize();
         CONFIG.load();
@@ -40,13 +43,17 @@ public final class NovaClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
 
             MODULES.tick();
+            EspRenderer.tick(client);
             handleMacro(client);
             handleGuiKey(client);
 
         });
 
         Runtime.getRuntime().addShutdownHook(
-            new Thread(CONFIG::save, "NovaClient-ConfigSave")
+            new Thread(
+                CONFIG::save,
+                "NovaClient-ConfigSave"
+            )
         );
 
         System.out.println("[Nova Client] Initialized!");
@@ -54,7 +61,8 @@ public final class NovaClient implements ClientModInitializer {
 
     private static void handleMacro(Minecraft client) {
 
-        Module macro = MODULES.getByName("Macro Recorder");
+        Module macro =
+            MODULES.getByName("Macro Recorder");
 
         if (macro != null && macro.isEnabled()) {
             MacroEngine.tick(client);
@@ -72,8 +80,10 @@ public final class NovaClient implements ClientModInitializer {
         long window = client.getWindow().handle();
 
         boolean keyDown =
-            GLFW.glfwGetKey(window, GLFW.GLFW_KEY_RIGHT_SHIFT)
-            == GLFW.GLFW_PRESS;
+            GLFW.glfwGetKey(
+                window,
+                GLFW.GLFW_KEY_RIGHT_SHIFT
+            ) == GLFW.GLFW_PRESS;
 
         if (keyDown && !guiKeyWasDown) {
 
