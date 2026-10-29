@@ -27,15 +27,18 @@ public final class ClickGuiScreen extends Screen {
     private static final int HEADER_H = 27;
     private static final int ROW_H = 21;
 
-    private static final int BACKGROUND = 0xDB0C0915;
-    private static final int PANEL = 0xF0171024;
-    private static final int HEADER = 0xFF422663;
-    private static final int ROW = 0xFF251A33;
-    private static final int ACTIVE = 0xFF563579;
-    private static final int BORDER = 0xFF74509C;
-    private static final int PURPLE = 0xFFC084FC;
-    private static final int WHITE = 0xFFF4EAFF;
-    private static final int MUTED = 0xFFB6A7C7;
+    // Dark Arctic Blue theme — original Nova Nebula v3 layout preserved.
+    private static final int BACKGROUND = 0xE8091522;
+    private static final int PANEL = 0xF5102638;
+    private static final int HEADER = 0xFF194663;
+    private static final int ROW = 0xFF102435;
+    private static final int ACTIVE = 0xFF205579;
+    private static final int BORDER = 0xFF274A63;
+    private static final int PURPLE = 0xFF83C9ED;
+    private static final int WHITE = 0xFFE0F3FF;
+    private static final int MUTED = 0xFF8DADC2;
+    private static final int HOVER = 0xFF1B3D55;
+    private static final int LINE = 0xFF315B75;
 
     private final List<CategoryPanel> panels =
         new ArrayList<>();
@@ -515,15 +518,13 @@ public final class ClickGuiScreen extends Screen {
             BACKGROUND
         );
 
-        g.fill(
-            0, 0,
-            width, 39,
-            PANEL
-        );
+        g.fill(0, 0, width, 39, PANEL);
+        g.fill(0, 38, width, 39, BORDER);
+        g.fill(0, 0, 3, 38, PURPLE);
 
         g.drawString(
             font,
-            "NOVA NEBULA v3",
+            "NOVA NEBULA  |  CLIENT v3.0",
             12, 14,
             WHITE,
             true
@@ -532,7 +533,7 @@ public final class ClickGuiScreen extends Screen {
         g.drawString(
             font,
             "LEFT: TOGGLE  |  RIGHT: SETTINGS",
-            145, 14,
+            205, 14,
             MUTED,
             false
         );
@@ -557,12 +558,10 @@ public final class ClickGuiScreen extends Screen {
         int panelHeight =
             panel.collapsed ? HEADER_H : PANEL_H;
 
-        g.fill(
-            x, y,
-            x + PANEL_W,
-            y + panelHeight,
-            PANEL
-        );
+        // Thin frost-blue frame and shadow.
+        g.fill(x + 2, y + 3, x + PANEL_W + 3, y + panelHeight + 3, 0x65000000);
+        g.fill(x - 1, y - 1, x + PANEL_W + 1, y + panelHeight + 1, BORDER);
+        g.fill(x, y, x + PANEL_W, y + panelHeight, PANEL);
 
         g.fill(
             x, y,
@@ -570,6 +569,9 @@ public final class ClickGuiScreen extends Screen {
             y + HEADER_H,
             HEADER
         );
+
+        g.fill(x, y, x + 3, y + HEADER_H, PURPLE);
+        g.fill(x + 3, y + HEADER_H - 1, x + PANEL_W, y + HEADER_H, LINE);
 
         g.drawString(
             font,
@@ -614,8 +616,13 @@ public final class ClickGuiScreen extends Screen {
                 x + 4, ry,
                 x + PANEL_W - 4,
                 ry + ROW_H - 2,
-                module.isEnabled() ? ACTIVE : ROW
+                module.isEnabled() ? ACTIVE
+                    : inside(mouseX, mouseY, x + 4, ry, PANEL_W - 8, ROW_H - 2) ? HOVER : ROW
             );
+
+            if (module.isEnabled()) {
+                g.fill(x + 4, ry, x + 6, ry + ROW_H - 2, PURPLE);
+            }
 
             String name = module.getName();
 
@@ -643,7 +650,7 @@ public final class ClickGuiScreen extends Screen {
                 ry + 12,
                 module.isEnabled()
                     ? PURPLE
-                    : 0xFF51425F
+                    : 0xFF36546A
             );
         }
 
@@ -806,11 +813,13 @@ public final class ClickGuiScreen extends Screen {
         boolean enabled
     ) {
 
-        g.fill(
-            x, y,
-            x + w, y + h,
-            enabled ? ACTIVE : ROW
-        );
+        boolean hovered = inside(mouseX, mouseY, x, y, w, h);
+        g.fill(x, y, x + w, y + h, BORDER);
+        g.fill(x + 1, y + 1, x + w - 1, y + h - 1,
+            enabled ? ACTIVE : hovered ? HOVER : ROW);
+        if (enabled) {
+            g.fill(x + 1, y + 1, x + 3, y + h - 1, PURPLE);
+        }
 
         g.drawCenteredString(
             font,
