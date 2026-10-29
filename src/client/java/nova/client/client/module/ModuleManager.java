@@ -21,6 +21,10 @@ public final class ModuleManager {
 
     private int afkTicks = 0;
 
+    // =========================================
+    // INITIALIZE ALL MODULES
+    // =========================================
+
     public void initialize() {
 
         modules.clear();
@@ -44,7 +48,8 @@ public final class ModuleManager {
                 }
 
                 if (mc.player.input != null
-                        && mc.player.input.getMoveVector().y > 0) {
+                    && mc.player.input.getMoveVector().y > 0) {
+
                     mc.player.setSprinting(true);
                 }
             }
@@ -69,7 +74,10 @@ public final class ModuleManager {
 
             @Override
             public void onDisable() {
-                Minecraft.getInstance().options.keyUp.setDown(false);
+
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyUp.setDown(false);
             }
         });
 
@@ -92,7 +100,10 @@ public final class ModuleManager {
 
             @Override
             public void onDisable() {
-                Minecraft.getInstance().options.keyShift.setDown(false);
+
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyShift.setDown(false);
             }
         });
 
@@ -111,9 +122,8 @@ public final class ModuleManager {
                 }
 
                 if (mc.player.onGround()
-                        && mc.player.input != null
-                        && mc.player.input.getMoveVector()
-                            .lengthSquared() > 0) {
+                    && mc.player.input != null
+                    && mc.player.input.getMoveVector().lengthSquared() > 0) {
 
                     mc.player.jumpFromGround();
                 }
@@ -161,13 +171,6 @@ public final class ModuleManager {
         register(new Module(
             "Armor HUD",
             "Display equipped armor and durability",
-            Category.RENDER
-        ) {});
-
-        // NEW MODULE: Target HUD
-        register(new Module(
-            "Target HUD",
-            "Show target name, health and distance",
             Category.RENDER
         ) {});
 
@@ -250,7 +253,8 @@ public final class ModuleManager {
                 Minecraft mc = Minecraft.getInstance();
 
                 if (mc.player != null
-                        && mc.player.isDeadOrDying()) {
+                    && mc.player.isDeadOrDying()) {
+
                     mc.player.respawn();
                 }
             }
@@ -267,6 +271,7 @@ public final class ModuleManager {
         ) {
             @Override
             public void onDisable() {
+
                 MacroEngine.stop(
                     Minecraft.getInstance()
                 );
@@ -313,10 +318,14 @@ public final class ModuleManager {
 
         System.out.println(
             "[Nova Client] Registered "
-                + modules.size()
-                + " modules."
+            + modules.size()
+            + " modules."
         );
     }
+
+    // =========================================
+    // REGISTER MODULE
+    // =========================================
 
     public void register(Module module) {
 
@@ -327,6 +336,10 @@ public final class ModuleManager {
         modules.add(module);
     }
 
+    // =========================================
+    // TICK ENABLED MODULES
+    // =========================================
+
     public void tick() {
 
         for (Module module : modules) {
@@ -336,8 +349,13 @@ public final class ModuleManager {
             }
         }
 
+        // Restore or update FOV when necessary.
         VisualModules.tickFov();
     }
+
+    // =========================================
+    // GET MODULE BY NAME
+    // =========================================
 
     public Module getByName(String name) {
 
@@ -355,6 +373,10 @@ public final class ModuleManager {
         return null;
     }
 
+    // =========================================
+    // GET MODULES BY CATEGORY
+    // =========================================
+
     public List<Module> getByCategory(Category category) {
 
         List<Module> result = new ArrayList<>();
@@ -369,6 +391,10 @@ public final class ModuleManager {
         return result;
     }
 
+    // =========================================
+    // GET ALL MODULES
+    // =========================================
+
     public List<Module> getModules() {
         return Collections.unmodifiableList(modules);
     }
@@ -376,6 +402,10 @@ public final class ModuleManager {
     public List<Module> getAll() {
         return getModules();
     }
+
+    // =========================================
+    // TOGGLE MODULE + NOTIFICATION
+    // =========================================
 
     public void toggleModule(Module module) {
 
@@ -391,8 +421,8 @@ public final class ModuleManager {
             getByName("Notifications");
 
         if (mc.player != null
-                && notifications != null
-                && notifications.isEnabled()) {
+            && notifications != null
+            && notifications.isEnabled()) {
 
             String status =
                 module.isEnabled() ? "ON" : "OFF";
@@ -400,9 +430,9 @@ public final class ModuleManager {
             mc.player.displayClientMessage(
                 Component.literal(
                     "[Nova] "
-                        + module.getName()
-                        + ": "
-                        + status
+                    + module.getName()
+                    + ": "
+                    + status
                 ),
                 true
             );
