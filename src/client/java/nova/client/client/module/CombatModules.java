@@ -7,131 +7,142 @@ package nova.client.client.module;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.phys.EntityHitResult;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.*;
 import net.minecraft.util.Mth;
 
-/**
- * Nova Nebula v3.0 Combat Modules.
- * All modules start disabled by default.
- */
 public final class CombatModules {
 
     private CombatModules() {}
 
-    private static final double RANGE = 4.5;
-    private static final float AIM_STEP = 5.0f;
-
     public static void register(ModuleManager manager) {
 
-        // Sword Aimbot
         manager.register(new Module(
             "Sword Aimbot",
-            "Smoothly face nearby targets while holding a sword",
+            "Configurable sword targeting",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                if (!mc.player.getMainHandItem()
-                        .getItem().toString().contains("sword")) {
-                    return;
-                }
-
-                aim(mc, nearest(mc, RANGE), AIM_STEP);
-            }
-        });
-
-        // Bow Aimbot
-        manager.register(new Module(
-            "Bow Aimbot",
-            "Lead nearby moving targets while drawing a bow",
-            Category.COMBAT
-        ) {
-            @Override
-            public void onTick() {
-                Minecraft mc = ready();
-                if (mc == null) return;
-
-                if (!mc.player.isUsingItem()
-                    || !mc.player.getUseItem().is(Items.BOW)) {
-                    return;
-                }
-
-                LivingEntity target = nearest(mc, 48);
-
-                if (target != null) {
-                    aimAt(
+                if (mc != null
+                    && mc.player.getMainHandItem()
+                        .getItem().toString()
+                        .contains("sword")) {
+                    aim(
                         mc,
-                        target.position()
-                            .add(target.getDeltaMovement().scale(5))
-                            .add(0, target.getBbHeight() * .75, 0),
-                        2.5f
+                        target(mc, "Sword Aimbot"),
+                        "Sword Aimbot",
+                        false
                     );
                 }
             }
         });
 
-        // TriggerBot
         manager.register(new Module(
-            "TriggerBot",
-            "Attack targets under your crosshair",
+            "Bow Aimbot",
+            "Snap or smooth predictive bow targeting",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                if (!(mc.hitResult instanceof EntityHitResult hit)) {
-                    return;
-                }
-
-                if (!(hit.getEntity() instanceof LivingEntity target)
-                    || !valid(mc, target)
-                    || mc.player.distanceTo(target) > RANGE) {
-                    return;
-                }
-
-                if (mc.player.getAttackStrengthScale(0) >= .95f) {
-                    mc.gameMode.attack(mc.player, target);
-                    mc.player.swing(InteractionHand.MAIN_HAND);
+                if (mc != null
+                    && mc.player.isUsingItem()
+                    && mc.player.getUseItem().is(Items.BOW)) {
+                    aim(
+                        mc,
+                        target(mc, "Bow Aimbot"),
+                        "Bow Aimbot",
+                        true
+                    );
                 }
             }
         });
 
-        // Auto Crystal
+        manager.register(new Module(
+            "Aim Assist",
+            "Configurable target tracking",
+            Category.COMBAT
+        ) {
+            @Override
+            public void onTick() {
+                Minecraft mc = ready();
+
+                if (mc != null) {
+                    aim(
+                        mc,
+                        target(mc, "Aim Assist"),
+                        "Aim Assist",
+                        false
+                    );
+                }
+            }
+        });
+
+        manager.register(new Module(
+            "TriggerBot",
+            "Attack target under crosshair",
+            Category.COMBAT
+        ) {
+            private int ticks;
+
+            @Override
+            public void onTick() {
+                Minecraft mc = ready();
+
+                if (mc == null) return;
+
+                if (++ticks < (int) CombatSettings.number(
+                    "TriggerBot", "delay", 2
+                )) {
+                    return;
+                }
+
+                if (mc.hitResult instanceof EntityHitResult hit
+                    && hit.getEntity() instanceof LivingEntity living
+                    && valid(mc, living, "TriggerBot")
+                    && mc.player.distanceTo(living)
+                        <= CombatSettings.number(
+                            "TriggerBot", "range", 4.5
+                        )
+                    && mc.player.getAttackStrengthScale(0)
+                        >= 0.95f) {
+
+                    mc.gameMode.attack(mc.player, living);
+                    mc.player.swing(InteractionHand.MAIN_HAND);
+                    ticks = 0;
+                }
+            }
+        });
+
         manager.register(new Module(
             "Auto Crystal",
             "Break nearby end crystals",
             Category.COMBAT
         ) {
-            private int delay;
+            private int ticks;
 
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null || ++delay < 5) return;
 
-                if (!mc.player.getMainHandItem()
-                        .is(Items.END_CRYSTAL)) {
-                    return;
-                }
+                if (mc == null || ++ticks < 5) return;
 
-                delay = 0;
+                ticks = 0;
 
-                for (Entity entity : mc.level.entitiesForRendering()) {
-                    if (entity.getType()
-                            == net.minecraft.world.entity.EntityType.END_CRYSTAL
-                        && mc.player.distanceTo(entity) < 4) {
+                for (Entity e : mc.level.entitiesForRendering()) {
+                    if (e.getType() == EntityType.END_CRYSTAL
+                        && mc.player.distanceTo(e)
+                            < CombatSettings.number(
+                                "Auto Crystal", "range", 4
+                            )) {
 
-                        mc.gameMode.attack(mc.player, entity);
+                        mc.gameMode.attack(mc.player, e);
                         mc.player.swing(InteractionHand.MAIN_HAND);
                         break;
                     }
@@ -139,52 +150,54 @@ public final class CombatModules {
             }
         });
 
-        // Auto Totem
         manager.register(new Module(
             "Auto Totem",
-            "Select a hotbar totem when health is low",
+            "Select hotbar totem below health threshold",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                if (mc.player.getHealth() > 10
+                if (mc == null
+                    || mc.player.getHealth()
+                        > CombatSettings.number(
+                            "Auto Totem", "health", 10
+                        )
                     || mc.player.getOffhandItem()
                         .is(Items.TOTEM_OF_UNDYING)) {
                     return;
                 }
 
-                for (int slot = 0; slot < 9; slot++) {
+                for (int i = 0; i < 9; i++) {
                     if (mc.player.getInventory()
-                            .getItem(slot)
-                            .is(Items.TOTEM_OF_UNDYING)) {
+                        .getItem(i)
+                        .is(Items.TOTEM_OF_UNDYING)) {
 
-                        mc.player.getInventory().setSelectedSlot(slot);
+                        mc.player.getInventory()
+                            .setSelectedSlot(i);
                         break;
                     }
                 }
             }
         });
 
-        // Auto Shield
         manager.register(new Module(
             "Auto Shield",
-            "Raise shield near a target",
+            "Raise offhand shield near targets",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
-                if (mc == null) return;
 
-                if (!mc.player.getOffhandItem().is(Items.SHIELD)) {
-                    return;
-                }
+                if (mc != null
+                    && mc.player.getOffhandItem()
+                        .is(Items.SHIELD)) {
 
-                if (nearest(mc, 5) != null) {
-                    mc.options.keyUse.setDown(true);
+                    mc.options.keyUse.setDown(
+                        target(mc, "Auto Shield") != null
+                    );
                 }
             }
 
@@ -195,91 +208,80 @@ public final class CombatModules {
             }
         });
 
-        // Target Strafe
         manager.register(new Module(
             "Target Strafe",
-            "Strafe around nearby targets",
+            "Strafe near selected targets",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
 
-                if (mc != null && nearest(mc, 4) != null) {
-                    mc.options.keyRight.setDown(true);
-                }
+                if (mc == null) return;
+
+                boolean found =
+                    target(mc, "Target Strafe") != null;
+
+                boolean left = CombatSettings.bool(
+                    "Target Strafe", "left", false
+                );
+
+                mc.options.keyLeft.setDown(found && left);
+                mc.options.keyRight.setDown(found && !left);
             }
 
             @Override
             public void onDisable() {
-                Minecraft.getInstance()
-                    .options.keyRight.setDown(false);
+                Minecraft mc = Minecraft.getInstance();
+
+                mc.options.keyLeft.setDown(false);
+                mc.options.keyRight.setDown(false);
             }
         });
 
-        // Aim Assist
-        manager.register(new Module(
-            "Aim Assist",
-            "Gently track nearby targets",
-            Category.COMBAT
-        ) {
-            @Override
-            public void onTick() {
-                Minecraft mc = ready();
-
-                if (mc != null) {
-                    aim(mc, nearest(mc, RANGE), 1.5f);
-                }
-            }
-        });
-
-        // Hitboxes (placeholder)
         manager.register(new Module(
             "Hitboxes",
-            "Target reach indicator (not implemented)",
+            "Render adjustable client-side target boxes",
             Category.COMBAT
         ) {});
 
-        // Auto Weapon
+        manager.register(new Module(
+            "Projectile ESP",
+            "Render outlines around nearby projectiles",
+            Category.COMBAT
+        ) {});
+
         manager.register(new Module(
             "Auto Weapon",
-            "Select a sword near targets",
+            "Select sword when target nearby",
             Category.COMBAT
         ) {
             @Override
             public void onTick() {
                 Minecraft mc = ready();
 
-                if (mc == null || nearest(mc, RANGE) == null) {
+                if (mc == null
+                    || target(mc, "Auto Weapon") == null) {
                     return;
                 }
 
-                for (int slot = 0; slot < 9; slot++) {
+                for (int i = 0; i < 9; i++) {
                     if (mc.player.getInventory()
-                            .getItem(slot)
-                            .getItem()
-                            .toString()
-                            .contains("sword")) {
+                        .getItem(i)
+                        .getItem().toString()
+                        .contains("sword")) {
 
                         mc.player.getInventory()
-                            .setSelectedSlot(slot);
-                        return;
+                            .setSelectedSlot(i);
+                        break;
                     }
                 }
             }
         });
 
-        // Projectile ESP (placeholder)
-        manager.register(new Module(
-            "Projectile ESP",
-            "Projectile highlighting (not implemented)",
-            Category.COMBAT
-        ) {});
-
-        // Criticals Helper
         manager.register(new Module(
             "Criticals Helper",
-            "Jump when a target is in reach",
+            "Jump when ready to strike",
             Category.COMBAT
         ) {
             @Override
@@ -288,8 +290,9 @@ public final class CombatModules {
 
                 if (mc != null
                     && mc.player.onGround()
-                    && nearest(mc, 3) != null
-                    && mc.player.getAttackStrengthScale(0) > .95f) {
+                    && target(mc, "Criticals Helper") != null
+                    && mc.player.getAttackStrengthScale(0)
+                        > 0.95f) {
 
                     mc.player.jumpFromGround();
                 }
@@ -309,33 +312,67 @@ public final class CombatModules {
 
     private static boolean valid(
         Minecraft mc,
-        LivingEntity entity
+        LivingEntity e,
+        String module
     ) {
-        return entity != mc.player
-            && !(entity instanceof Player player
-                && (player.isSpectator() || player.isCreative()))
-            && entity.isAlive()
-            && mc.player.hasLineOfSight(entity);
+        if (e == mc.player || !e.isAlive()) {
+            return false;
+        }
+
+        if (e instanceof Player p
+            && (p.isSpectator() || p.isCreative())) {
+            return false;
+        }
+
+        if (CombatSettings.bool(module, "los", true)
+            && !mc.player.hasLineOfSight(e)) {
+            return false;
+        }
+
+        return e instanceof Player
+            ? CombatSettings.bool(module, "players", true)
+            : CombatSettings.bool(module, "mobs", true);
     }
 
-    private static LivingEntity nearest(
+    private static LivingEntity target(
         Minecraft mc,
-        double range
+        String module
     ) {
-        LivingEntity best = null;
-        double bestDistance = range * range;
+        double range = CombatSettings.number(
+            module,
+            "range",
+            module.equals("Bow Aimbot") ? 48 : 4.5
+        );
 
-        for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity living)
-                || !valid(mc, living)) {
+        String priority = CombatSettings.get(
+            module, "priority", "Closest"
+        );
+
+        LivingEntity best = null;
+        double score = 0;
+
+        for (Entity e : mc.level.entitiesForRendering()) {
+            if (!(e instanceof LivingEntity living)
+                || !valid(mc, living, module)) {
                 continue;
             }
 
-            double distance = mc.player.distanceToSqr(living);
+            double d = mc.player.distanceToSqr(living);
 
-            if (distance < bestDistance) {
-                bestDistance = distance;
+            if (d > range * range) {
+                continue;
+            }
+
+            double s = switch (priority) {
+                case "Furthest" -> d;
+                case "Lowest HP" -> -living.getHealth();
+                case "Highest HP" -> living.getHealth();
+                default -> -d;
+            };
+
+            if (best == null || s > score) {
                 best = living;
+                score = s;
             }
         }
 
@@ -344,56 +381,84 @@ public final class CombatModules {
 
     private static void aim(
         Minecraft mc,
-        LivingEntity target,
-        float speed
+        LivingEntity e,
+        String module,
+        boolean bow
     ) {
-        if (target != null) {
-            aimAt(
-                mc,
-                target.position()
-                    .add(0, target.getBbHeight() * .75, 0),
-                speed
+        if (e == null) return;
+
+        Vec3 pos = e.position().add(
+            0, e.getBbHeight() * 0.75, 0
+        );
+
+        if (bow && CombatSettings.bool(
+            module, "prediction", true
+        )) {
+            double distance = mc.player.distanceTo(e);
+
+            double lead = Math.min(
+                18, distance / 2.5
+            ) * CombatSettings.number(
+                module, "lead", 1
+            );
+
+            pos = pos.add(
+                e.getDeltaMovement().scale(lead)
             );
         }
-    }
 
-    private static void aimAt(
-        Minecraft mc,
-        Vec3 position,
-        float speed
-    ) {
-        Vec3 delta = position.subtract(
+        Vec3 delta = pos.subtract(
             mc.player.getEyePosition()
         );
 
-        double horizontal = Math.sqrt(
+        double h = Math.sqrt(
             delta.x * delta.x + delta.z * delta.z
         );
 
         float yaw = (float) (
-            Math.toDegrees(Math.atan2(delta.z, delta.x)) - 90
+            Math.toDegrees(
+                Math.atan2(delta.z, delta.x)
+            ) - 90
         );
 
         float pitch = (float) -Math.toDegrees(
-            Math.atan2(delta.y, horizontal)
+            Math.atan2(delta.y, h)
+        );
+
+        boolean snap = CombatSettings.get(
+            module,
+            "mode",
+            bow ? "Snap" : "Smooth"
+        ).equals("Snap");
+
+        float speed = (float) CombatSettings.number(
+            module,
+            "speed",
+            bow ? 8 : 5
         );
 
         mc.player.setYRot(
-            mc.player.getYRot()
-                + Mth.clamp(
-                    Mth.wrapDegrees(yaw - mc.player.getYRot()),
-                    -speed,
-                    speed
-                )
+            snap
+                ? yaw
+                : mc.player.getYRot()
+                    + Mth.clamp(
+                        Mth.wrapDegrees(
+                            yaw - mc.player.getYRot()
+                        ),
+                        -speed,
+                        speed
+                    )
         );
 
         mc.player.setXRot(
-            mc.player.getXRot()
-                + Mth.clamp(
-                    pitch - mc.player.getXRot(),
-                    -speed,
-                    speed
-                )
+            snap
+                ? pitch
+                : mc.player.getXRot()
+                    + Mth.clamp(
+                        pitch - mc.player.getXRot(),
+                        -speed,
+                        speed
+                    )
         );
     }
 }
