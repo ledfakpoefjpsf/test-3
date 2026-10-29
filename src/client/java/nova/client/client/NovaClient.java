@@ -6,6 +6,7 @@ package nova.client.client;
 // @location: src/client/java/nova/client/client/NovaClient.java
 
 import net.fabricmc.api.ClientModInitializer;
+
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 
@@ -13,12 +14,18 @@ import net.minecraft.client.Minecraft;
 
 import nova.client.client.gui.ClickGuiScreen;
 import nova.client.client.gui.NovaHud;
+
 import nova.client.client.macro.MacroEngine;
+
+import nova.client.client.module.Category;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
-import nova.client.client.module.FreecamController;
+
 import nova.client.client.config.ConfigManager;
+
 import nova.client.client.render.EspRenderer;
+import nova.client.client.render.MinimapRenderer;
+import nova.client.client.render.EntityRadarRenderer;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -39,18 +46,36 @@ public final class NovaClient implements ClientModInitializer {
             "[Nova Client] Starting Nova Nebula v3..."
         );
 
+        // Initialize existing modules.
+        MODULES.initialize();
+
         // =====================================
-        // INITIALIZE MODULES AND CONFIG
+        // NEW RENDER MODULES
         // =====================================
 
-        MODULES.initialize();
+        MODULES.register(new Module(
+            "Minimap",
+            "Top-down terrain minimap",
+            Category.RENDER
+        ) {});
+
+        MODULES.register(new Module(
+            "Entity Radar",
+            "Detect nearby players and mobs",
+            Category.RENDER
+        ) {});
+
+        // Load settings after registering modules.
         CONFIG.load();
 
         // =====================================
-        // INITIALIZE HUD
+        // HUD RENDERERS
         // =====================================
 
         NovaHud.initialize();
+
+        MinimapRenderer.initialize();
+        EntityRadarRenderer.initialize();
 
         // =====================================
         // CLIENT TICK
@@ -61,6 +86,8 @@ public final class NovaClient implements ClientModInitializer {
 
                 MODULES.tick();
 
+                MinimapRenderer.tick();
+
                 handleMacro(client);
                 handleGuiKey(client);
             }
@@ -68,7 +95,7 @@ public final class NovaClient implements ClientModInitializer {
 
         // =====================================
         // WORLD RENDER
-        // KEEP SMOOTH ESP RENDERING
+        // KEEP EXISTING ESP RENDERING
         // =====================================
 
         WorldRenderEvents.END_EXTRACTION.register(
