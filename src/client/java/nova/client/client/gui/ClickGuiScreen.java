@@ -33,7 +33,6 @@ public class ClickGuiScreen extends Screen {
     private static final int PURPLE = 0xFFC084FC;
     private static final int WHITE = 0xFFF4EEFF;
     private static final int MUTED = 0xFFA99CB9;
-    private static final int GREEN = 0xFF4ADE80;
 
     private static final int PANEL_W = 125;
     private static final int PANEL_H = 215;
@@ -64,17 +63,25 @@ public class ClickGuiScreen extends Screen {
 
     private long openedAt;
 
+    // =========================================
+    // CATEGORY PANEL
+    // =========================================
+
     private static final class Panel {
+
         final Category category;
+
         int x;
         int y;
         int scroll;
+
         boolean collapsed;
 
         Panel(Category category, int x, int y) {
             this.category = category;
             this.x = x;
             this.y = y;
+            this.scroll = 0;
         }
     }
 
@@ -82,18 +89,25 @@ public class ClickGuiScreen extends Screen {
         super(Component.literal("Nova Nebula v3"));
     }
 
+    // =========================================
+    // INITIALIZE
+    // =========================================
+
     @Override
     protected void init() {
 
         openedAt = System.currentTimeMillis();
 
-        if (!panels.isEmpty()) return;
+        if (!panels.isEmpty()) {
+            return;
+        }
 
         Category[] categories = Category.values();
 
         int columns = width >= 850 ? 6 : 3;
-        int totalWidth = columns * PANEL_W
-            + (columns - 1) * 9;
+
+        int totalWidth =
+            columns * PANEL_W + (columns - 1) * 9;
 
         int startX = Math.max(
             8,
@@ -101,6 +115,7 @@ public class ClickGuiScreen extends Screen {
         );
 
         for (int i = 0; i < categories.length; i++) {
+
             panels.add(new Panel(
                 categories[i],
                 startX + (i % columns) * (PANEL_W + 9),
@@ -109,40 +124,51 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
+    // =========================================
+    // INPUT HANDLING
+    // =========================================
+
     @Override
     public void tick() {
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return;
+
+        if (mc.getWindow() == null) {
+            return;
+        }
 
         long window = mc.getWindow().handle();
 
         mouseX = (int) (
             mc.mouseHandler.xpos()
-            * mc.getWindow().getGuiScaledWidth()
-            / mc.getWindow().getScreenWidth()
+                * mc.getWindow().getGuiScaledWidth()
+                / mc.getWindow().getScreenWidth()
         );
 
         mouseY = (int) (
             mc.mouseHandler.ypos()
-            * mc.getWindow().getGuiScaledHeight()
-            / mc.getWindow().getScreenHeight()
+                * mc.getWindow().getGuiScaledHeight()
+                / mc.getWindow().getScreenHeight()
         );
 
         boolean left = GLFW.glfwGetMouseButton(
-            window, GLFW.GLFW_MOUSE_BUTTON_LEFT
+            window,
+            GLFW.GLFW_MOUSE_BUTTON_LEFT
         ) == GLFW.GLFW_PRESS;
 
         boolean right = GLFW.glfwGetMouseButton(
-            window, GLFW.GLFW_MOUSE_BUTTON_RIGHT
+            window,
+            GLFW.GLFW_MOUSE_BUTTON_RIGHT
         ) == GLFW.GLFW_PRESS;
 
         boolean pageUp = GLFW.glfwGetKey(
-            window, GLFW.GLFW_KEY_PAGE_UP
+            window,
+            GLFW.GLFW_KEY_PAGE_UP
         ) == GLFW.GLFW_PRESS;
 
         boolean pageDown = GLFW.glfwGetKey(
-            window, GLFW.GLFW_KEY_PAGE_DOWN
+            window,
+            GLFW.GLFW_KEY_PAGE_DOWN
         ) == GLFW.GLFW_PRESS;
 
         if (left && !lastLeft) {
@@ -158,6 +184,7 @@ public class ClickGuiScreen extends Screen {
         }
 
         if (dragging != null && left) {
+
             dragging.x = Math.max(
                 0,
                 Math.min(
@@ -194,13 +221,140 @@ public class ClickGuiScreen extends Screen {
         lastPageDown = pageDown;
     }
 
-    private boolean inside(
-        int mx, int my,
-        int x, int y,
-        int w, int h
+    // =========================================
+    // MOUSE WHEEL SCROLLING
+    // =========================================
+
+    @Override
+    public boolean mouseScrolled(
+        double mx,
+        double my,
+        double horizontalAmount,
+        double verticalAmount
     ) {
-        return mx >= x && mx < x + w
-            && my >= y && my < y + h;
+
+        if (verticalAmount == 0.0D) {
+            return super.mouseScrolled(
+                mx,
+                my,
+                horizontalAmount,
+                verticalAmount
+            );
+        }
+
+        mouseX = (int) mx;
+        mouseY = (int) my;
+
+        int direction = verticalAmount > 0 ? -1 : 1;
+
+        int steps = Math.max(
+            1,
+            Math.min(
+                6,
+                (int) Math.ceil(Math.abs(verticalAmount))
+            )
+        );
+
+        for (int i = 0; i < steps; i++) {
+            scrollHovered(direction);
+        }
+
+        return true;
+    }
+
+    // =========================================
+    // SCROLL CATEGORY OR MOB SETTINGS
+    // =========================================
+
+    private void scrollHovered(int direction) {
+
+        if (expandedModule != null) {
+
+            if (expandedModule.getName()
+                    .equalsIgnoreCase("Mob ESP")) {
+
+                int max = Math.max(
+                    0,
+                    MobEspSettings.MOBS.length - 12
+                );
+
+                mobScroll = Math.max(
+                    0,
+                    Math.min(
+                        max,
+                        mobScroll + direction * 3
+                    )
+                );
+            }
+
+            return;
+        }
+
+        for (int i = panels.size() - 1; i >= 0; i--) {
+
+            Panel panel = panels.get(i);
+
+            if (!isPanelVisible(i) || panel.collapsed) {
+                continue;
+            }
+
+            if (!inside(
+                mouseX,
+                mouseY,
+                panel.x,
+                panel.y,
+                PANEL_W,
+                PANEL_H
+            )) {
+                continue;
+            }
+
+            int count = NovaClient.MODULES
+                .getByCategory(panel.category)
+                .size();
+
+            int maxScroll = Math.max(
+                0,
+                count - visibleRows()
+            );
+
+            panel.scroll = Math.max(
+                0,
+                Math.min(
+                    maxScroll,
+                    panel.scroll + direction
+                )
+            );
+
+            return;
+        }
+    }
+
+    private int visibleRows() {
+        return (PANEL_H - HEADER_H - 22) / ROW_H;
+    }
+
+    private boolean isPanelVisible(int index) {
+        return System.currentTimeMillis() - openedAt
+            >= index * 85L;
+    }
+
+    // =========================================
+    // HIT TESTING
+    // =========================================
+
+    private boolean inside(
+        int mx,
+        int my,
+        int x,
+        int y,
+        int w,
+        int h
+    ) {
+        return mx >= x
+            && mx < x + w
+            && my >= y
+            && my < y + h;
     }
 
     private int settingsWidth() {
@@ -230,10 +384,15 @@ public class ClickGuiScreen extends Screen {
         return settingsY() + 115;
     }
 
+    // =========================================
+    // TRACER THICKNESS SLIDER
+    // =========================================
+
     private void updateTracerSlider(int mx) {
 
         float progress = (float) (
-            (mx - sliderX()) / (double) sliderWidth()
+            (mx - sliderX())
+                / (double) sliderWidth()
         );
 
         progress = Math.max(
@@ -243,14 +402,19 @@ public class ClickGuiScreen extends Screen {
 
         float value = 1.0F + progress * 9.0F;
 
-        // Half-step increments
         value = Math.round(value * 2.0F) / 2.0F;
 
         EspOverlaySettings.setTracerThickness(value);
     }
 
+    // =========================================
+    // MODULE CLICK HANDLING
+    // =========================================
+
     private void handleClick(
-        int mx, int my, boolean rightClick
+        int mx,
+        int my,
+        boolean rightClick
     ) {
 
         if (expandedModule != null) {
@@ -259,7 +423,12 @@ public class ClickGuiScreen extends Screen {
         }
 
         if (!rightClick && inside(
-            mx, my, width - 84, 12, 72, 19
+            mx,
+            my,
+            width - 84,
+            12,
+            72,
+            19
         )) {
             openedAt = System.currentTimeMillis();
             return;
@@ -269,32 +438,48 @@ public class ClickGuiScreen extends Screen {
 
             Panel panel = panels.get(i);
 
-            if (!isPanelVisible(i)) continue;
+            if (!isPanelVisible(i)) {
+                continue;
+            }
 
             if (inside(
-                mx, my, panel.x, panel.y,
-                PANEL_W, HEADER_H
+                mx,
+                my,
+                panel.x,
+                panel.y,
+                PANEL_W,
+                HEADER_H
             )) {
 
                 if (rightClick) {
+
                     panel.collapsed = !panel.collapsed;
+
                 } else {
+
                     dragging = panel;
+
                     dragOffsetX = mx - panel.x;
                     dragOffsetY = my - panel.y;
 
                     panels.remove(i);
                     panels.add(panel);
                 }
+
                 return;
             }
 
-            if (panel.collapsed) continue;
+            if (panel.collapsed) {
+                continue;
+            }
 
             if (!inside(
-                mx, my,
-                panel.x, panel.y + HEADER_H,
-                PANEL_W, PANEL_H - HEADER_H
+                mx,
+                my,
+                panel.x,
+                panel.y + HEADER_H,
+                PANEL_W,
+                PANEL_H - HEADER_H - 18
             )) {
                 continue;
             }
@@ -307,11 +492,15 @@ public class ClickGuiScreen extends Screen {
             int relativeY =
                 my - panel.y - HEADER_H - 5;
 
-            if (relativeY < 0) return;
+            if (relativeY < 0) {
+                return;
+            }
 
             int row = relativeY / ROW_H;
 
-            if (row >= visibleRows()) return;
+            if (row < 0 || row >= visibleRows()) {
+                return;
+            }
 
             int index = panel.scroll + row;
 
@@ -328,11 +517,13 @@ public class ClickGuiScreen extends Screen {
                 ) || module.getName().equalsIgnoreCase(
                     "Player ESP"
                 )) {
+
                     expandedModule = module;
                     mobScroll = 0;
                 }
 
             } else {
+
                 NovaClient.MODULES.toggleModule(module);
                 NovaClient.CONFIG.save();
             }
@@ -341,8 +532,14 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
+    // =========================================
+    // ESP SETTINGS CLICK HANDLING
+    // =========================================
+
     private void handleSettingsClick(
-        int mx, int my, boolean rightClick
+        int mx,
+        int my,
+        boolean rightClick
     ) {
 
         int x = settingsX();
@@ -350,50 +547,62 @@ public class ClickGuiScreen extends Screen {
         int w = settingsWidth();
 
         if (rightClick || inside(
-            mx, my, x + 8, y + 7, 55, 19
+            mx,
+            my,
+            x + 8,
+            y + 7,
+            55,
+            19
         )) {
+
             expandedModule = null;
             draggingSlider = false;
             return;
         }
 
+        int buttonW = (w - 28) / 3;
+
         if (inside(
             mx, my,
             x + 8, y + 50,
-            (w - 28) / 3, 22
+            buttonW, 22
         )) {
+
             EspOverlaySettings.toggleNames();
             return;
         }
 
         if (inside(
             mx, my,
-            x + 12 + (w - 28) / 3,
+            x + 12 + buttonW,
             y + 50,
-            (w - 28) / 3, 22
+            buttonW, 22
         )) {
+
             EspOverlaySettings.toggleHealth();
             return;
         }
 
         if (inside(
             mx, my,
-            x + 16 + 2 * ((w - 28) / 3),
+            x + 16 + buttonW * 2,
             y + 50,
-            (w - 28) / 3, 22
+            buttonW, 22
         )) {
+
             EspOverlaySettings.toggleTracers();
             return;
         }
 
-        // Tracer thickness slider
         if (inside(
-            mx, my,
+            mx,
+            my,
             sliderX() - 5,
             sliderY() - 8,
             sliderWidth() + 10,
             20
         )) {
+
             draggingSlider = true;
             updateTracerSlider(mx);
             return;
@@ -404,12 +613,18 @@ public class ClickGuiScreen extends Screen {
                 "Mob ESP"
             );
 
-        if (!mobSettings) return;
+        if (!mobSettings) {
+            return;
+        }
 
         if (inside(
             mx, my,
-            x + w - 104, y + 7, 43, 19
+            x + w - 104,
+            y + 7,
+            43,
+            19
         )) {
+
             MobEspSettings.selectAll();
             NovaClient.CONFIG.save();
             return;
@@ -417,8 +632,12 @@ public class ClickGuiScreen extends Screen {
 
         if (inside(
             mx, my,
-            x + w - 56, y + 7, 47, 19
+            x + w - 56,
+            y + 7,
+            47,
+            19
         )) {
+
             MobEspSettings.selectNone();
             NovaClient.CONFIG.save();
             return;
@@ -426,18 +645,28 @@ public class ClickGuiScreen extends Screen {
 
         if (inside(
             mx, my,
-            x + 10, y + SETTINGS_H - 28,
-            60, 19
+            x + 10,
+            y + SETTINGS_H - 28,
+            60,
+            19
         )) {
-            mobScroll = Math.max(0, mobScroll - 6);
+
+            mobScroll = Math.max(
+                0,
+                mobScroll - 6
+            );
+
             return;
         }
 
         if (inside(
             mx, my,
-            x + w - 70, y + SETTINGS_H - 28,
-            60, 19
+            x + w - 70,
+            y + SETTINGS_H - 28,
+            60,
+            19
         )) {
+
             mobScroll = Math.min(
                 Math.max(
                     0,
@@ -445,6 +674,7 @@ public class ClickGuiScreen extends Screen {
                 ),
                 mobScroll + 6
             );
+
             return;
         }
 
@@ -453,92 +683,67 @@ public class ClickGuiScreen extends Screen {
         for (int i = 0; i < 12; i++) {
 
             int index = mobScroll + i;
-            if (index >= MobEspSettings.MOBS.length) break;
+
+            if (index >= MobEspSettings.MOBS.length) {
+                break;
+            }
 
             int column = i % 2;
             int row = i / 2;
 
-            int cx = x + 10 + column * (cellW + 10);
-            int cy = y + 145 + row * 31;
+            int cx =
+                x + 10 + column * (cellW + 10);
 
-            if (inside(mx, my, cx, cy, cellW, 25)) {
+            int cy =
+                y + 145 + row * 31;
+
+            if (inside(
+                mx, my,
+                cx, cy,
+                cellW, 25
+            )) {
+
                 MobEspSettings.toggle(
                     MobEspSettings.MOBS[index]
                 );
+
                 NovaClient.CONFIG.save();
                 return;
             }
         }
     }
 
-    private int visibleRows() {
-        return (PANEL_H - HEADER_H - 9) / ROW_H;
-    }
-
-    private boolean isPanelVisible(int index) {
-        return System.currentTimeMillis() - openedAt
-            >= index * 85L;
-    }
-
-    private void scrollHovered(int direction) {
-
-        if (expandedModule != null) {
-
-            if (expandedModule.getName().equalsIgnoreCase(
-                "Mob ESP"
-            )) {
-                int max = Math.max(
-                    0,
-                    MobEspSettings.MOBS.length - 12
-                );
-
-                mobScroll = Math.max(
-                    0,
-                    Math.min(
-                        max,
-                        mobScroll + direction * 3
-                    )
-                );
-            }
-            return;
-        }
-
-        for (int i = panels.size() - 1; i >= 0; i--) {
-
-            Panel panel = panels.get(i);
-
-            if (!inside(
-                mouseX, mouseY,
-                panel.x, panel.y,
-                PANEL_W, PANEL_H
-            )) continue;
-
-            int count = NovaClient.MODULES
-                .getByCategory(panel.category)
-                .size();
-
-            panel.scroll = Math.max(
-                0,
-                Math.min(
-                    Math.max(0, count - visibleRows()),
-                    panel.scroll + direction
-                )
-            );
-            return;
-        }
-    }
+    // =========================================
+    // DRAW HELPERS
+    // =========================================
 
     private void rect(
         GuiGraphics g,
-        int x, int y, int w, int h, int color
+        int x,
+        int y,
+        int w,
+        int h,
+        int color
     ) {
-        g.fill(x, y, x + w, y + h, color);
+
+        g.fill(
+            x,
+            y,
+            x + w,
+            y + h,
+            color
+        );
     }
 
     private void outline(
         GuiGraphics g,
-        int x, int y, int w, int h, int color
+        int x,
+        int y,
+        int w,
+        int h,
+        int color
     ) {
+
         rect(g, x, y, w, 1, color);
         rect(g, x, y + h - 1, w, 1, color);
         rect(g, x, y, 1, h, color);
@@ -548,19 +753,40 @@ public class ClickGuiScreen extends Screen {
     private void text(
         GuiGraphics g,
         String value,
-        int x, int y, int color
+        int x,
+        int y,
+        int color
     ) {
-        g.drawString(font, value, x, y, color, false);
+
+        g.drawString(
+            font,
+            value,
+            x,
+            y,
+            color,
+            false
+        );
     }
 
     private void button(
         GuiGraphics g,
-        int x, int y, int w, int h,
-        String label, boolean active
+        int x,
+        int y,
+        int w,
+        int h,
+        String label,
+        boolean active
     ) {
 
-        rect(g, x, y, w, h, active ? ACTIVE : ROW);
-        outline(g, x, y, w, h,
+        rect(
+            g,
+            x, y, w, h,
+            active ? ACTIVE : ROW
+        );
+
+        outline(
+            g,
+            x, y, w, h,
             active ? PURPLE : BORDER
         );
 
@@ -573,27 +799,68 @@ public class ClickGuiScreen extends Screen {
         );
     }
 
+    // =========================================
+    // MAIN GUI RENDER
+    // =========================================
+
     @Override
     public void render(
         GuiGraphics g,
-        int mx, int my, float delta
+        int mx,
+        int my,
+        float delta
     ) {
 
         rect(g, 0, 0, width, height, BG);
-        rect(g, 0, 0, width, 40, 0xEE100B1D);
-        rect(g, 0, 39, width, 1, PURPLE);
 
-        text(g, "NOVA NEBULA V3", 13, 9, PURPLE);
-        text(g, "FABRIC 1.21.11", 13, 23, MUTED);
+        rect(
+            g,
+            0, 0,
+            width, 40,
+            0xEE100B1D
+        );
+
+        rect(
+            g,
+            0, 39,
+            width, 1,
+            PURPLE
+        );
+
+        text(
+            g,
+            "NOVA NEBULA V3",
+            13, 9,
+            PURPLE
+        );
+
+        text(
+            g,
+            "FABRIC 1.21.11",
+            13, 23,
+            MUTED
+        );
 
         button(
-            g, width - 84, 12, 72, 19,
-            "REPLAY", false
+            g,
+            width - 84,
+            12,
+            72,
+            19,
+            "REPLAY",
+            false
         );
 
         for (int i = 0; i < panels.size(); i++) {
+
             if (isPanelVisible(i)) {
-                drawPanel(g, panels.get(i), mx, my);
+
+                drawPanel(
+                    g,
+                    panels.get(i),
+                    mx,
+                    my
+                );
             }
         }
 
@@ -603,120 +870,272 @@ public class ClickGuiScreen extends Screen {
 
         text(
             g,
-            "LMB Toggle | RMB Settings | Drag Headers",
-            10, height - 15, MUTED
+            "LMB Toggle | RMB Settings | Drag Headers | Wheel Scroll",
+            10,
+            height - 15,
+            MUTED
         );
     }
+
+    // =========================================
+    // DRAW CATEGORY PANEL
+    // =========================================
 
     private void drawPanel(
         GuiGraphics g,
         Panel panel,
-        int mx, int my
+        int mx,
+        int my
     ) {
 
         int x = panel.x;
         int y = panel.y;
-        int h = panel.collapsed ? HEADER_H : PANEL_H;
 
-        rect(g, x + 3, y + 4, PANEL_W, h, 0x55000000);
-        rect(g, x, y, PANEL_W, h, PANEL);
-        outline(g, x, y, PANEL_W, h, BORDER);
+        int h = panel.collapsed
+            ? HEADER_H
+            : PANEL_H;
 
-        rect(g, x + 1, y + 1,
-            PANEL_W - 2, HEADER_H - 2, HEADER
+        rect(
+            g,
+            x + 3,
+            y + 4,
+            PANEL_W,
+            h,
+            0x55000000
         );
 
-        rect(g, x + 1, y + 1,
-            PANEL_W - 2, 2, PURPLE
+        rect(
+            g,
+            x,
+            y,
+            PANEL_W,
+            h,
+            PANEL
+        );
+
+        outline(
+            g,
+            x,
+            y,
+            PANEL_W,
+            h,
+            BORDER
+        );
+
+        rect(
+            g,
+            x + 1,
+            y + 1,
+            PANEL_W - 2,
+            HEADER_H - 2,
+            HEADER
+        );
+
+        rect(
+            g,
+            x + 1,
+            y + 1,
+            PANEL_W - 2,
+            2,
+            PURPLE
         );
 
         text(
             g,
             panel.category.getDisplayName().toUpperCase(),
-            x + 8, y + 9, WHITE
+            x + 8,
+            y + 9,
+            WHITE
         );
 
         text(
             g,
             panel.collapsed ? "+" : "-",
-            x + PANEL_W - 14, y + 9, PURPLE
+            x + PANEL_W - 14,
+            y + 9,
+            PURPLE
         );
 
-        if (panel.collapsed) return;
+        if (panel.collapsed) {
+            return;
+        }
 
         List<Module> modules =
             NovaClient.MODULES.getByCategory(
                 panel.category
             );
 
+        int maxScroll = Math.max(
+            0,
+            modules.size() - visibleRows()
+        );
+
+        panel.scroll = Math.max(
+            0,
+            Math.min(maxScroll, panel.scroll)
+        );
+
         for (int row = 0; row < visibleRows(); row++) {
 
             int index = panel.scroll + row;
-            if (index >= modules.size()) break;
+
+            if (index >= modules.size()) {
+                break;
+            }
 
             Module module = modules.get(index);
 
-            int ry = y + HEADER_H + 5 + row * ROW_H;
+            int ry =
+                y + HEADER_H + 5 + row * ROW_H;
 
             boolean hover = inside(
-                mx, my,
-                x + 3, ry,
-                PANEL_W - 6, ROW_H - 1
+                mx,
+                my,
+                x + 3,
+                ry,
+                PANEL_W - 6,
+                ROW_H - 1
             );
 
             rect(
                 g,
-                x + 3, ry,
-                PANEL_W - 6, ROW_H - 1,
+                x + 3,
+                ry,
+                PANEL_W - 6,
+                ROW_H - 1,
                 module.isEnabled()
                     ? ACTIVE
-                    : hover ? 0xFF302044 : ROW
+                    : hover
+                        ? 0xFF302044
+                        : ROW
             );
 
             if (module.isEnabled()) {
+
                 rect(
                     g,
-                    x + 3, ry,
-                    2, ROW_H - 1,
+                    x + 3,
+                    ry,
+                    2,
+                    ROW_H - 1,
                     PURPLE
                 );
             }
 
             String name = module.getName();
 
-            while (name.length() > 1
-                && font.width(name) > PANEL_W - 28) {
-                name = name.substring(0, name.length() - 1);
+            while (
+                name.length() > 1
+                && font.width(name) > PANEL_W - 28
+            ) {
+
+                name = name.substring(
+                    0,
+                    name.length() - 1
+                );
             }
 
             text(
-                g, name,
-                x + 9, ry + 5,
-                module.isEnabled() ? WHITE : MUTED
+                g,
+                name,
+                x + 9,
+                ry + 5,
+                module.isEnabled()
+                    ? WHITE
+                    : MUTED
             );
 
             rect(
                 g,
                 x + PANEL_W - 13,
-                ry + 6, 5, 5,
+                ry + 6,
+                5,
+                5,
                 module.isEnabled()
-                    ? PURPLE : 0xFF484052
+                    ? PURPLE
+                    : 0xFF484052
             );
         }
 
+        // Bottom information bar
         rect(
             g,
-            x + 1, y + PANEL_H - 18,
-            PANEL_W - 2, 17,
+            x + 1,
+            y + PANEL_H - 18,
+            PANEL_W - 2,
+            17,
             0xFF1C142B
         );
 
         text(
             g,
             modules.size() + " MODULES",
-            x + 8, y + PANEL_H - 14, MUTED
+            x + 8,
+            y + PANEL_H - 14,
+            MUTED
         );
+
+        // =====================================
+        // PURPLE SCROLLBAR
+        // =====================================
+
+        if (maxScroll > 0) {
+
+            int trackX = x + PANEL_W - 4;
+            int trackY = y + HEADER_H + 5;
+
+            int trackH = visibleRows() * ROW_H;
+
+            int thumbH = Math.max(
+                14,
+                trackH * visibleRows()
+                    / modules.size()
+            );
+
+            int thumbY =
+                trackY
+                + (trackH - thumbH)
+                    * panel.scroll / maxScroll;
+
+            rect(
+                g,
+                trackX,
+                trackY,
+                2,
+                trackH,
+                0xFF38284D
+            );
+
+            rect(
+                g,
+                trackX,
+                thumbY,
+                2,
+                thumbH,
+                PURPLE
+            );
+
+            String position =
+                (panel.scroll + 1)
+                + "-"
+                + Math.min(
+                    modules.size(),
+                    panel.scroll + visibleRows()
+                );
+
+            text(
+                g,
+                position,
+                x + PANEL_W - 42,
+                y + PANEL_H - 14,
+                PURPLE
+            );
+        }
     }
+
+    // =========================================
+    // ESP SETTINGS WINDOW
+    // =========================================
 
     private void drawEspSettings(GuiGraphics g) {
 
@@ -730,25 +1149,71 @@ public class ClickGuiScreen extends Screen {
             );
 
         rect(
-            g, 0, 40,
-            width, height - 40,
+            g,
+            0,
+            40,
+            width,
+            height - 40,
             0xB0000000
         );
 
-        rect(g, x, y, w, SETTINGS_H, PANEL);
-        outline(g, x, y, w, SETTINGS_H, BORDER);
-        rect(g, x + 1, y + 1, w - 2, 32, HEADER);
+        rect(
+            g,
+            x,
+            y,
+            w,
+            SETTINGS_H,
+            PANEL
+        );
 
-        button(g, x + 8, y + 7, 55, 19, "BACK", false);
+        outline(
+            g,
+            x,
+            y,
+            w,
+            SETTINGS_H,
+            BORDER
+        );
+
+        rect(
+            g,
+            x + 1,
+            y + 1,
+            w - 2,
+            32,
+            HEADER
+        );
+
+        button(
+            g,
+            x + 8,
+            y + 7,
+            55,
+            19,
+            "BACK",
+            false
+        );
 
         if (mobSettings) {
+
             button(
-                g, x + w - 104, y + 7,
-                43, 19, "ALL", false
+                g,
+                x + w - 104,
+                y + 7,
+                43,
+                19,
+                "ALL",
+                false
             );
+
             button(
-                g, x + w - 56, y + 7,
-                47, 19, "NONE", false
+                g,
+                x + w - 56,
+                y + 7,
+                47,
+                19,
+                "NONE",
+                false
             );
         }
 
@@ -757,14 +1222,19 @@ public class ClickGuiScreen extends Screen {
             mobSettings
                 ? "MOB ESP SETTINGS"
                 : "PLAYER ESP SETTINGS",
-            x + 10, y + 36, PURPLE
+            x + 10,
+            y + 36,
+            PURPLE
         );
 
         int buttonW = (w - 28) / 3;
 
         button(
             g,
-            x + 8, y + 50, buttonW, 22,
+            x + 8,
+            y + 50,
+            buttonW,
+            22,
             "Names: " + (
                 EspOverlaySettings.showNames()
                     ? "ON" : "OFF"
@@ -774,8 +1244,10 @@ public class ClickGuiScreen extends Screen {
 
         button(
             g,
-            x + 12 + buttonW, y + 50,
-            buttonW, 22,
+            x + 12 + buttonW,
+            y + 50,
+            buttonW,
+            22,
             "HP: " + (
                 EspOverlaySettings.showHealth()
                     ? "ON" : "OFF"
@@ -785,8 +1257,10 @@ public class ClickGuiScreen extends Screen {
 
         button(
             g,
-            x + 16 + buttonW * 2, y + 50,
-            buttonW, 22,
+            x + 16 + buttonW * 2,
+            y + 50,
+            buttonW,
+            22,
             "Tracers: " + (
                 EspOverlaySettings.showTracers()
                     ? "ON" : "OFF"
@@ -794,7 +1268,6 @@ public class ClickGuiScreen extends Screen {
             EspOverlaySettings.showTracers()
         );
 
-        // Tracer thickness label
         String thicknessText = String.format(
             Locale.ROOT,
             "Tracer Thickness: %.1f",
@@ -804,7 +1277,9 @@ public class ClickGuiScreen extends Screen {
         text(
             g,
             thicknessText,
-            x + 18, y + 91, WHITE
+            x + 18,
+            y + 91,
+            WHITE
         );
 
         // Slider track
@@ -812,17 +1287,29 @@ public class ClickGuiScreen extends Screen {
         int sy = sliderY();
         int sw = sliderWidth();
 
-        rect(g, sx, sy, sw, 6, 0xFF393048);
+        rect(
+            g,
+            sx,
+            sy,
+            sw,
+            6,
+            0xFF393048
+        );
 
-        float progress = (
-            EspOverlaySettings.getTracerThickness() - 1.0F
-        ) / 9.0F;
+        float progress =
+            (EspOverlaySettings.getTracerThickness()
+                - 1.0F) / 9.0F;
 
-        int fillWidth = Math.round(sw * progress);
+        int fillWidth = Math.round(
+            sw * progress
+        );
 
         rect(
-            g, sx, sy,
-            fillWidth, 6,
+            g,
+            sx,
+            sy,
+            fillWidth,
+            6,
             PURPLE
         );
 
@@ -833,11 +1320,19 @@ public class ClickGuiScreen extends Screen {
             g,
             thumbX - 4,
             sy - 4,
-            8, 14,
+            8,
+            14,
             WHITE
         );
 
-        text(g, "1.0", sx, sy + 13, MUTED);
+        text(
+            g,
+            "1.0",
+            sx,
+            sy + 13,
+            MUTED
+        );
+
         text(
             g,
             "10.0",
@@ -847,40 +1342,61 @@ public class ClickGuiScreen extends Screen {
         );
 
         if (!mobSettings) {
+
             text(
                 g,
                 "These settings also apply to Mob ESP.",
-                x + 18, y + 155, MUTED
+                x + 18,
+                y + 155,
+                MUTED
             );
+
             return;
         }
 
-        // Mob selection grid
+        // =====================================
+        // MOB SELECTION GRID
+        // =====================================
+
         int cellW = (w - 30) / 2;
 
         for (int i = 0; i < 12; i++) {
 
             int index = mobScroll + i;
-            if (index >= MobEspSettings.MOBS.length) break;
+
+            if (index >= MobEspSettings.MOBS.length) {
+                break;
+            }
 
             String id = MobEspSettings.MOBS[index];
 
             int column = i % 2;
             int row = i / 2;
 
-            int cx = x + 10 + column * (cellW + 10);
-            int cy = y + 145 + row * 31;
+            int cx =
+                x + 10 + column * (cellW + 10);
+
+            int cy =
+                y + 145 + row * 31;
 
             boolean selected =
                 MobEspSettings.isSelected(id);
 
             rect(
-                g, cx, cy, cellW, 25,
+                g,
+                cx,
+                cy,
+                cellW,
+                25,
                 selected ? ACTIVE : ROW
             );
 
             outline(
-                g, cx, cy, cellW, 25,
+                g,
+                cx,
+                cy,
+                cellW,
+                25,
                 selected ? PURPLE : BORDER
             );
 
@@ -888,21 +1404,30 @@ public class ClickGuiScreen extends Screen {
                 g,
                 (selected ? "[x] " : "[ ] ")
                     + id.replace('_', ' '),
-                cx + 6, cy + 8,
+                cx + 6,
+                cy + 8,
                 selected ? WHITE : MUTED
             );
         }
 
         button(
             g,
-            x + 10, y + SETTINGS_H - 28,
-            60, 19, "PREV", false
+            x + 10,
+            y + SETTINGS_H - 28,
+            60,
+            19,
+            "PREV",
+            false
         );
 
         button(
             g,
-            x + w - 70, y + SETTINGS_H - 28,
-            60, 19, "NEXT", false
+            x + w - 70,
+            y + SETTINGS_H - 28,
+            60,
+            19,
+            "NEXT",
+            false
         );
 
         g.drawCenteredString(
@@ -914,6 +1439,10 @@ public class ClickGuiScreen extends Screen {
             PURPLE
         );
     }
+
+    // =========================================
+    // DON'T PAUSE THE GAME
+    // =========================================
 
     @Override
     public boolean isPauseScreen() {
