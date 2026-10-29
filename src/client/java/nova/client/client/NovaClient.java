@@ -5,21 +5,27 @@ package nova.client.client;
 // @location: src/client/java/nova/client/client/NovaClient.java
 
 import net.fabricmc.api.ClientModInitializer;
+
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+
 import net.minecraft.client.Minecraft;
 
 import nova.client.client.config.ConfigManager;
+
 import nova.client.client.gui.ClickGuiScreen;
 import nova.client.client.gui.NovaHud;
+
 import nova.client.client.macro.MacroEngine;
+
 import nova.client.client.module.Category;
 import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
+
 import nova.client.client.render.EntityRadarRenderer;
 import nova.client.client.render.EspRenderer;
 import nova.client.client.render.MinimapRenderer;
-import nova.client.client.render.XrayRenderer;
+import nova.client.client.render.XrayChunkRefresh;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -33,6 +39,8 @@ public final class NovaClient implements ClientModInitializer {
 
     private static boolean guiKeyWasDown = false;
 
+    private static boolean lastXrayState = false;
+
     @Override
     public void onInitializeClient() {
 
@@ -40,7 +48,7 @@ public final class NovaClient implements ClientModInitializer {
             "[Nova Client] Starting Nova Nebula v3..."
         );
 
-        // Register existing modules.
+        // Register every existing built-in module.
         MODULES.initialize();
 
         // Minimap.
@@ -60,49 +68,68 @@ public final class NovaClient implements ClientModInitializer {
         // X-Ray.
         MODULES.register(new Module(
             "X-Ray",
-            "Highlights ores, bedrock and fluids",
+            "Highlights selected blocks through terrain",
             Category.RENDER
         ) {
+
+            @Override
+            public void onEnable() {
+
+                XrayChunkRefresh.requestRefresh();
+
+                System.out.println(
+                    "[Nova X-Ray] Enabled"
+                );
+            }
+
             @Override
             public void onDisable() {
-                XrayRenderer.clear();
+
+                XrayChunkRefresh.requestRefresh();
+
+                System.out.println(
+                    "[Nova X-Ray] Disabled"
+                );
             }
         });
 
-        // Load saved module and settings states.
+        // Load module states and settings.
         CONFIG.load();
 
-        // Initialize existing HUD systems.
+        // Initialize existing HUD and radar systems.
         NovaHud.initialize();
         MinimapRenderer.initialize();
         EntityRadarRenderer.initialize();
 
-        // Client updates.
+        // Client tick.
         ClientTickEvents.END_CLIENT_TICK.register(
             client -> {
 
                 MODULES.tick();
 
                 MinimapRenderer.tick();
-                XrayRenderer.tick();
+
+                XrayChunkRefresh.tick(client);
+
+                checkXrayState();
 
                 handleMacro(client);
+
                 handleGuiKey(client);
             }
         );
 
-        // Preserve ESP rendering and add X-Ray.
+        // Preserve existing ESP rendering.
         WorldRenderEvents.END_EXTRACTION.register(
             context -> {
 
                 Minecraft mc = Minecraft.getInstance();
 
                 EspRenderer.render(mc);
-                XrayRenderer.render(mc);
             }
         );
 
-        // Save when the game closes.
+        // Save settings on shutdown.
         Runtime.getRuntime().addShutdownHook(
             new Thread(
                 CONFIG::save,
@@ -115,14 +142,36 @@ public final class NovaClient implements ClientModInitializer {
         );
     }
 
+    public static boolean isXrayEnabled() {
+
+        Module xray = MODULES.getByName("X-Ray");
+
+        return xray != null && xray.isEnabled();
+    }
+
+    private static void checkXrayState() {
+
+        boolean enabled = isXrayEnabled();
+
+        if (enabled != lastXrayState) {
+
+            lastXrayState = enabled;
+
+            XrayChunkRefresh.requestRefresh();
+        }
+    }
+
     private static void handleMacro(Minecraft client) {
 
         Module macro =
             MODULES.getByName("Macro Recorder");
 
         if (macro != null && macro.isEnabled()) {
+
             MacroEngine.tick(client);
+
         } else {
+
             MacroEngine.stop(client);
         }
     }
