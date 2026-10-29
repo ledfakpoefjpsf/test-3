@@ -17,7 +17,8 @@ import nova.client.client.macro.MacroEngine;
 
 public final class ModuleManager {
 
-    private final List<Module> modules = new ArrayList<>();
+    private final List<Module> modules =
+        new ArrayList<>();
 
     private int afkTicks = 0;
 
@@ -29,19 +30,21 @@ public final class ModuleManager {
 
         modules.clear();
 
-        // =========================================
+        // =====================================
         // MOVEMENT
-        // =========================================
+        // =====================================
 
         register(new Module(
             "Auto Sprint",
             "Automatically sprint while moving forward",
             Category.MOVEMENT
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -60,10 +63,12 @@ public final class ModuleManager {
             "Automatically walk forward",
             Category.MOVEMENT
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -75,7 +80,8 @@ public final class ModuleManager {
             @Override
             public void onDisable() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 mc.options.keyUp.setDown(false);
             }
@@ -86,10 +92,12 @@ public final class ModuleManager {
             "Automatically sneak",
             Category.MOVEMENT
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -101,7 +109,8 @@ public final class ModuleManager {
             @Override
             public void onDisable() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 mc.options.keyShift.setDown(false);
             }
@@ -112,10 +121,12 @@ public final class ModuleManager {
             "Automatically jump while moving",
             Category.MOVEMENT
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -130,9 +141,9 @@ public final class ModuleManager {
             }
         });
 
-        // =========================================
+        // =====================================
         // RENDER
-        // =========================================
+        // =====================================
 
         register(new Module(
             "Player ESP",
@@ -145,6 +156,7 @@ public final class ModuleManager {
             "Highlight selected mobs with glowing outlines",
             Category.RENDER
         ) {
+
             @Override
             public void onTick() {
                 MobEspSettings.tick();
@@ -153,6 +165,32 @@ public final class ModuleManager {
             @Override
             public void onDisable() {
                 MobEspSettings.clear();
+            }
+        });
+
+        // =====================================
+        // FREECAM
+        // =====================================
+
+        register(new Module(
+            "Freecam",
+            "Fly the camera without moving your player",
+            Category.RENDER
+        ) {
+
+            @Override
+            public void onEnable() {
+                FreecamController.enable();
+            }
+
+            @Override
+            public void onTick() {
+                FreecamController.tick();
+            }
+
+            @Override
+            public void onDisable() {
+                FreecamController.disable();
             }
         });
 
@@ -179,6 +217,7 @@ public final class ModuleManager {
             "Change your field of view",
             Category.RENDER
         ) {
+
             @Override
             public void onTick() {
                 VisualModules.tickFov();
@@ -195,6 +234,7 @@ public final class ModuleManager {
             "Hold C to zoom in",
             Category.RENDER
         ) {
+
             @Override
             public void onTick() {
                 VisualModules.tickFov();
@@ -211,6 +251,7 @@ public final class ModuleManager {
             "Brighten dark areas using the lightmap",
             Category.RENDER
         ) {
+
             @Override
             public void onTick() {
                 VisualModules.tickFullbright();
@@ -227,6 +268,7 @@ public final class ModuleManager {
             "Toggle Minecraft's fog rendering",
             Category.RENDER
         ) {
+
             @Override
             public void onEnable() {
                 VisualModules.enableNoFog();
@@ -238,19 +280,21 @@ public final class ModuleManager {
             }
         });
 
-        // =========================================
+        // =====================================
         // PLAYER
-        // =========================================
+        // =====================================
 
         register(new Module(
             "Auto Respawn",
             "Automatically respawn after dying",
             Category.PLAYER
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player != null
                     && mc.player.isDeadOrDying()) {
@@ -260,15 +304,16 @@ public final class ModuleManager {
             }
         });
 
-        // =========================================
+        // =====================================
         // MISC
-        // =========================================
+        // =====================================
 
         register(new Module(
             "Macro Recorder",
             "Record and replay movement macros",
             Category.MISC
         ) {
+
             @Override
             public void onDisable() {
 
@@ -283,10 +328,12 @@ public final class ModuleManager {
             "Periodically swing to prevent inactivity",
             Category.MISC
         ) {
+
             @Override
             public void onTick() {
 
-                Minecraft mc = Minecraft.getInstance();
+                Minecraft mc =
+                    Minecraft.getInstance();
 
                 if (mc.player == null || mc.screen != null) {
                     return;
@@ -318,8 +365,8 @@ public final class ModuleManager {
 
         System.out.println(
             "[Nova Client] Registered "
-            + modules.size()
-            + " modules."
+                + modules.size()
+                + " modules."
         );
     }
 
@@ -349,7 +396,6 @@ public final class ModuleManager {
             }
         }
 
-        // Restore or update FOV when necessary.
         VisualModules.tickFov();
     }
 
@@ -379,7 +425,8 @@ public final class ModuleManager {
 
     public List<Module> getByCategory(Category category) {
 
-        List<Module> result = new ArrayList<>();
+        List<Module> result =
+            new ArrayList<>();
 
         for (Module module : modules) {
 
@@ -404,7 +451,7 @@ public final class ModuleManager {
     }
 
     // =========================================
-    // TOGGLE MODULE + NOTIFICATION
+    // TOGGLE MODULE
     // =========================================
 
     public void toggleModule(Module module) {
@@ -415,7 +462,8 @@ public final class ModuleManager {
 
         module.toggle();
 
-        Minecraft mc = Minecraft.getInstance();
+        Minecraft mc =
+            Minecraft.getInstance();
 
         Module notifications =
             getByName("Notifications");
@@ -430,9 +478,9 @@ public final class ModuleManager {
             mc.player.displayClientMessage(
                 Component.literal(
                     "[Nova] "
-                    + module.getName()
-                    + ": "
-                    + status
+                        + module.getName()
+                        + ": "
+                        + status
                 ),
                 true
             );
