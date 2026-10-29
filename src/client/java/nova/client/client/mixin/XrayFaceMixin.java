@@ -1,13 +1,11 @@
+
 package nova.client.client.mixin;
 
 // @name: XrayFaceMixin
 // @type: Client Mixin
 // @location: src/client/java/nova/client/client/mixin/XrayFaceMixin.java
 
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -19,12 +17,12 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Nova Nebula X-Ray face-rendering hook.
+ * Nova Nebula X-Ray face visibility.
  *
- * Allows selected ores to render faces that vanilla
- * Minecraft normally hides against neighboring stone.
+ * Minecraft 1.21.11 Mojang mappings.
  *
- * Does not change terrain opacity or RenderShape.
+ * Makes selected ore faces visible when touching
+ * ordinary terrain while X-Ray is enabled.
  */
 @Mixin(Block.class)
 public abstract class XrayFaceMixin {
@@ -36,33 +34,26 @@ public abstract class XrayFaceMixin {
     )
     private static void nova$renderXrayFaces(
         BlockState state,
-        BlockGetter world,
-        BlockPos pos,
+        BlockState neighborState,
         Direction direction,
-        BlockPos neighborPos,
         CallbackInfoReturnable<Boolean> cir
     ) {
 
-        // Preserve vanilla rendering when X-Ray is off.
         if (!XrayRenderHooks.isEnabled()) {
             return;
         }
 
-        if (state == null || world == null) {
+        if (state == null || neighborState == null) {
             return;
         }
 
-        // Only override face culling for selected blocks.
         if (!XrayRenderHooks.isSelected(state)) {
             return;
         }
 
-        BlockState neighbor = world.getBlockState(
-            neighborPos
-        );
-
-        // Show ore faces touching ordinary terrain.
-        if (XrayRenderHooks.shouldFade(neighbor)) {
+        // Force ore faces to render when they touch
+        // ordinary terrain that X-Ray will fade.
+        if (XrayRenderHooks.shouldFade(neighborState)) {
             cir.setReturnValue(true);
         }
     }
