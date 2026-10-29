@@ -2,7 +2,7 @@
 package nova.client.client.module;
 
 // @name: ModuleManager
-// @type: Java Class
+// @type: Client Java Class
 // @location: src/client/java/nova/client/client/module/ModuleManager.java
 
 import java.util.ArrayList;
@@ -29,6 +29,11 @@ public final class ModuleManager {
     public void initialize() {
 
         modules.clear();
+
+        // =====================================
+        // COMBAT
+        // =====================================
+        CombatModules.register(this);
 
         // =====================================
         // MOVEMENT
@@ -132,11 +137,39 @@ public final class ModuleManager {
                     return;
                 }
 
-                if (mc.player.onGround()
-                    && mc.player.input != null
-                    && mc.player.input.getMoveVector().lengthSquared() > 0) {
-
+                if (mc.player.onGround()) {
                     mc.player.jumpFromGround();
+                }
+            }
+        });
+
+        register(new Module(
+            "Step",
+            "Automatically step over small obstacles",
+            Category.MOVEMENT
+        ) {
+
+            @Override
+            public void onTick() {
+
+                Minecraft mc =
+                    Minecraft.getInstance();
+
+                if (mc.player == null) {
+                    return;
+                }
+
+                mc.player.setMaxUpStep(1.0f);
+            }
+
+            @Override
+            public void onDisable() {
+
+                Minecraft mc =
+                    Minecraft.getInstance();
+
+                if (mc.player != null) {
+                    mc.player.setMaxUpStep(0.6f);
                 }
             }
         });
@@ -146,139 +179,52 @@ public final class ModuleManager {
         // =====================================
 
         register(new Module(
-            "Player ESP",
-            "Highlight other players with glowing outlines",
+            "Fullbright",
+            "Makes dark areas easier to see",
             Category.RENDER
         ) {});
 
         register(new Module(
-            "Mob ESP",
-            "Highlight selected mobs with glowing outlines",
+            "Entity ESP",
+            "Highlights entities through walls",
             Category.RENDER
-        ) {
+        ) {});
 
-            @Override
-            public void onTick() {
-                MobEspSettings.tick();
-            }
+        register(new Module(
+            "Block ESP",
+            "Highlights selected blocks",
+            Category.RENDER
+        ) {});
 
-            @Override
-            public void onDisable() {
-                MobEspSettings.clear();
-            }
-        });
+        register(new Module(
+            "Tracers",
+            "Draws lines toward entities",
+            Category.RENDER
+        ) {});
 
-        // =====================================
-        // FREECAM
-        // =====================================
+        register(new Module(
+            "Name Tags",
+            "Displays enhanced entity name tags",
+            Category.RENDER
+        ) {});
 
         register(new Module(
             "Freecam",
-            "Fly the camera without moving your player",
-            Category.RENDER
-        ) {
-
-            @Override
-            public void onEnable() {
-                FreecamController.enable();
-            }
-
-            @Override
-            public void onTick() {
-                FreecamController.tick();
-            }
-
-            @Override
-            public void onDisable() {
-                FreecamController.disable();
-            }
-        });
-
-        register(new Module(
-            "Coordinates HUD",
-            "Display your current coordinates",
+            "Move your camera independently",
             Category.RENDER
         ) {});
 
         register(new Module(
-            "FPS HUD",
-            "Display your current FPS",
+            "Minimap",
+            "Displays a small map of your surroundings",
             Category.RENDER
         ) {});
 
         register(new Module(
-            "Armor HUD",
-            "Display equipped armor and durability",
+            "Entity Radar",
+            "Shows nearby entities on a radar",
             Category.RENDER
         ) {});
-
-        register(new Module(
-            "FOV Changer",
-            "Change your field of view",
-            Category.RENDER
-        ) {
-
-            @Override
-            public void onTick() {
-                VisualModules.tickFov();
-            }
-
-            @Override
-            public void onDisable() {
-                VisualModules.tickFov();
-            }
-        });
-
-        register(new Module(
-            "Zoom",
-            "Hold C to zoom in",
-            Category.RENDER
-        ) {
-
-            @Override
-            public void onTick() {
-                VisualModules.tickFov();
-            }
-
-            @Override
-            public void onDisable() {
-                VisualModules.tickFov();
-            }
-        });
-
-        register(new Module(
-            "Fullbright",
-            "Brighten dark areas using the lightmap",
-            Category.RENDER
-        ) {
-
-            @Override
-            public void onTick() {
-                VisualModules.tickFullbright();
-            }
-
-            @Override
-            public void onDisable() {
-                VisualModules.disableFullbright();
-            }
-        });
-
-        register(new Module(
-            "No Fog",
-            "Toggle Minecraft's fog rendering",
-            Category.RENDER
-        ) {
-
-            @Override
-            public void onEnable() {
-                VisualModules.enableNoFog();
-            }
-
-            @Override
-            public void onDisable() {
-                VisualModules.disableNoFog();
-            }
-        });
 
         // =====================================
         // PLAYER
@@ -304,28 +250,54 @@ public final class ModuleManager {
             }
         });
 
+        register(new Module(
+            "Auto Eat",
+            "Automatically eat food when hungry",
+            Category.PLAYER
+        ) {
+
+            @Override
+            public void onTick() {
+
+                Minecraft mc =
+                    Minecraft.getInstance();
+
+                if (mc.player == null || mc.screen != null) {
+                    return;
+                }
+
+                if (mc.player.getFoodData()
+                        .getFoodLevel() < 14) {
+
+                    if (mc.player.getMainHandItem()
+                            .getFoodProperties(mc.player) != null) {
+
+                        mc.options.keyUse.setDown(true);
+                    }
+                }
+            }
+
+            @Override
+            public void onDisable() {
+
+                Minecraft.getInstance()
+                    .options.keyUse.setDown(false);
+            }
+        });
+
+        register(new Module(
+            "Auto Fish",
+            "Automatically use a fishing rod",
+            Category.PLAYER
+        ) {});
+
         // =====================================
         // MISC
         // =====================================
 
         register(new Module(
-            "Macro Recorder",
-            "Record and replay movement macros",
-            Category.MISC
-        ) {
-
-            @Override
-            public void onDisable() {
-
-                MacroEngine.stop(
-                    Minecraft.getInstance()
-                );
-            }
-        });
-
-        register(new Module(
             "Anti AFK",
-            "Periodically swing to prevent inactivity",
+            "Prevents being marked as inactive",
             Category.MISC
         ) {
 
@@ -341,37 +313,51 @@ public final class ModuleManager {
 
                 afkTicks++;
 
-                if (afkTicks >= 600) {
+                if (afkTicks >= 200) {
+
+                    afkTicks = 0;
 
                     mc.player.swing(
                         InteractionHand.MAIN_HAND
                     );
-
-                    afkTicks = 0;
                 }
-            }
-
-            @Override
-            public void onDisable() {
-                afkTicks = 0;
             }
         });
 
         register(new Module(
-            "Notifications",
-            "Show module toggle notifications",
+            "Coordinates",
+            "Displays player coordinates",
             Category.MISC
         ) {});
 
-        System.out.println(
-            "[Nova Client] Registered "
-                + modules.size()
-                + " modules."
-        );
+        register(new Module(
+            "FPS Counter",
+            "Displays current FPS",
+            Category.MISC
+        ) {});
+
+        register(new Module(
+            "CPS Counter",
+            "Displays clicks per second",
+            Category.MISC
+        ) {});
+
+        register(new Module(
+            "Macros",
+            "Runs configured macros",
+            Category.MISC
+        ) {
+
+            @Override
+            public void onTick() {
+
+                MacroEngine.tick();
+            }
+        });
     }
 
     // =========================================
-    // REGISTER MODULE
+    // MODULE MANAGEMENT
     // =========================================
 
     public void register(Module module) {
@@ -383,47 +369,14 @@ public final class ModuleManager {
         modules.add(module);
     }
 
-    // =========================================
-    // TICK ENABLED MODULES
-    // =========================================
+    public List<Module> getModules() {
 
-    public void tick() {
-
-        for (Module module : modules) {
-
-            if (module.isEnabled()) {
-                module.onTick();
-            }
-        }
-
-        VisualModules.tickFov();
+        return Collections.unmodifiableList(modules);
     }
 
-    // =========================================
-    // GET MODULE BY NAME
-    // =========================================
-
-    public Module getByName(String name) {
-
-        if (name == null) {
-            return null;
-        }
-
-        for (Module module : modules) {
-
-            if (module.getName().equalsIgnoreCase(name)) {
-                return module;
-            }
-        }
-
-        return null;
-    }
-
-    // =========================================
-    // GET MODULES BY CATEGORY
-    // =========================================
-
-    public List<Module> getByCategory(Category category) {
+    public List<Module> getByCategory(
+        Category category
+    ) {
 
         List<Module> result =
             new ArrayList<>();
@@ -438,52 +391,37 @@ public final class ModuleManager {
         return result;
     }
 
-    // =========================================
-    // GET ALL MODULES
-    // =========================================
+    public Module getByName(String name) {
 
-    public List<Module> getModules() {
-        return Collections.unmodifiableList(modules);
-    }
+        for (Module module : modules) {
 
-    public List<Module> getAll() {
-        return getModules();
-    }
+            if (module.getName()
+                    .equalsIgnoreCase(name)) {
 
-    // =========================================
-    // TOGGLE MODULE
-    // =========================================
-
-    public void toggleModule(Module module) {
-
-        if (module == null) {
-            return;
+                return module;
+            }
         }
 
-        module.toggle();
+        return null;
+    }
 
-        Minecraft mc =
-            Minecraft.getInstance();
+    public void tick() {
 
-        Module notifications =
-            getByName("Notifications");
+        for (Module module : modules) {
 
-        if (mc.player != null
-            && notifications != null
-            && notifications.isEnabled()) {
+            if (module.isEnabled()) {
+                module.onTick();
+            }
+        }
+    }
 
-            String status =
-                module.isEnabled() ? "ON" : "OFF";
+    public void disableAll() {
 
-            mc.player.displayClientMessage(
-                Component.literal(
-                    "[Nova] "
-                        + module.getName()
-                        + ": "
-                        + status
-                ),
-                true
-            );
+        for (Module module : modules) {
+
+            if (module.isEnabled()) {
+                module.setEnabled(false);
+            }
         }
     }
 }
