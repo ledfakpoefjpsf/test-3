@@ -12,6 +12,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 import nova.client.client.macro.MacroEngine;
@@ -334,12 +335,19 @@ public final class MacroSettingsScreen extends Screen {
         super.render(g, mx, my, partial);
     }
 
+    // =========================================
+    // FIXED FOR MINECRAFT FABRIC 1.21.11
+    // =========================================
+
     @Override
     public boolean mouseClicked(
-        double mx,
-        double my,
-        int button
+        MouseButtonEvent event,
+        boolean doubleClick
     ) {
+
+        double mx = event.x();
+        double my = event.y();
+        int button = event.button();
 
         int x = width / 2 - 145;
         int y = Math.max(20, height / 2 - 125);
@@ -363,7 +371,7 @@ public final class MacroSettingsScreen extends Screen {
             }
         }
 
-        return super.mouseClicked(mx, my, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
