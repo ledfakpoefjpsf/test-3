@@ -1,7 +1,7 @@
 package nova.client.client.config;
 
 // @name: ConfigManager
-// @type: Java Class
+// @type: Client Configuration Manager
 // @location: src/client/java/nova/client/client/config/ConfigManager.java
 
 import com.google.gson.Gson;
@@ -23,6 +23,7 @@ import nova.client.client.module.Module;
 import nova.client.client.module.ModuleManager;
 import nova.client.client.module.MobEspSettings;
 import nova.client.client.module.RadarSettings;
+import nova.client.client.module.XraySettings;
 
 public class ConfigManager {
 
@@ -47,7 +48,7 @@ public class ConfigManager {
 
             JsonObject root = new JsonObject();
 
-            // Save module states and keybinds
+            // Module enabled states and keybinds.
             for (Module module : manager.getModules()) {
 
                 JsonObject data = new JsonObject();
@@ -65,52 +66,67 @@ public class ConfigManager {
                 root.add(module.getName(), data);
             }
 
-            // Save Mob ESP selections
-            JsonArray mobSelections = new JsonArray();
+            // Mob ESP selections.
+            JsonArray mobs = new JsonArray();
 
             for (String id : MobEspSettings.getSelected()) {
-                mobSelections.add(id);
+                mobs.add(id);
             }
 
-            root.add("mobEspSelections", mobSelections);
+            root.add("mobEspSelections", mobs);
 
-            // Save Entity Radar settings
+            // Entity Radar settings.
             JsonObject radar = new JsonObject();
 
             radar.addProperty(
-                "range", RadarSettings.range
+                "range",
+                RadarSettings.range
             );
 
             radar.addProperty(
-                "size", RadarSettings.size
+                "size",
+                RadarSettings.size
             );
 
             radar.addProperty(
-                "players", RadarSettings.players
+                "players",
+                RadarSettings.players
             );
 
             radar.addProperty(
-                "hostile", RadarSettings.hostile
+                "hostile",
+                RadarSettings.hostile
             );
 
             radar.addProperty(
-                "passive", RadarSettings.passive
+                "passive",
+                RadarSettings.passive
             );
 
             radar.addProperty(
-                "rotate", RadarSettings.rotate
+                "rotate",
+                RadarSettings.rotate
             );
 
             radar.addProperty(
-                "names", RadarSettings.names
+                "names",
+                RadarSettings.names
             );
 
             radar.addProperty(
-                "distance", RadarSettings.distance
+                "distance",
+                RadarSettings.distance
             );
 
             root.add("entityRadarSettings", radar);
 
+            // X-Ray settings.
+            root.add(
+                "xraySettings",
+                XraySettings.save()
+            );
+
+            // Write config.
             Files.createDirectories(path.getParent());
 
             try (Writer writer =
@@ -154,7 +170,7 @@ public class ConfigManager {
                 return;
             }
 
-            // Load Entity Radar settings
+            // Entity Radar.
             if (root.has("entityRadarSettings")
                 && root.get("entityRadarSettings").isJsonObject()) {
 
@@ -204,7 +220,16 @@ public class ConfigManager {
                 }
             }
 
-            // Load Mob ESP selections
+            // X-Ray.
+            if (root.has("xraySettings")
+                && root.get("xraySettings").isJsonObject()) {
+
+                XraySettings.load(
+                    root.getAsJsonObject("xraySettings")
+                );
+            }
+
+            // Mob ESP selections.
             if (root.has("mobEspSelections")
                 && root.get("mobEspSelections").isJsonArray()) {
 
@@ -225,14 +250,15 @@ public class ConfigManager {
                 MobEspSettings.setSelected(ids);
             }
 
-            // Load module states and keybinds
+            // Module states and keybinds.
             for (Module module : manager.getModules()) {
 
                 if (!root.has(module.getName())) {
                     continue;
                 }
 
-                JsonElement entry = root.get(module.getName());
+                JsonElement entry =
+                    root.get(module.getName());
 
                 if (!entry.isJsonObject()) {
                     continue;
