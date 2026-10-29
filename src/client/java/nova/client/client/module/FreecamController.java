@@ -4,8 +4,14 @@ package nova.client.client.module;
 // @name: FreecamController
 // @type: Client Java Class
 // @location: src/client/java/nova/client/client/module/FreecamController.java
+//
+// Freecam movement adapted from Meteor Client:
+// https://github.com/MeteorDevelopment/meteor-client
+// Copyright (c) Meteor Development
+// Meteor Client is licensed under GPL-3.0.
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.CameraType;
 import net.minecraft.world.phys.Vec3;
 
 import org.lwjgl.glfw.GLFW;
@@ -15,64 +21,79 @@ public final class FreecamController {
     private static boolean active = false;
 
     private static Vec3 position = Vec3.ZERO;
+    private static Vec3 previousPosition = Vec3.ZERO;
 
     private static float yaw;
     private static float pitch;
 
-    private static double speed = 0.45D;
+    private static float previousYaw;
+    private static float previousPitch;
 
-    private static long lastUpdate;
+    private static double speed = 1.0D;
 
-    private FreecamController() {}
+    private static CameraType oldPerspective;
+
+    private static long lastTickTime = System.nanoTime();
+
+    private FreecamController() {
+    }
 
     public static boolean isActive() {
         return active;
     }
 
-    public static Vec3 getPosition() {
-        return position;
-    }
-
-    public static float getYaw() {
-        return yaw;
-    }
-
-    public static float getPitch() {
-        return pitch;
-    }
-
-    public static double getSpeed() {
-        return speed;
-    }
-
-    public static void setSpeed(double value) {
-        speed = Math.max(0.05D, Math.min(3.0D, value));
-    }
-
     public static void enable() {
-
         Minecraft mc = Minecraft.getInstance();
 
-        if (mc.player == null) {
+        if (active || mc.player == null || mc.level == null) {
             return;
         }
 
-        position = mc.player.getEyePosition();
+        oldPerspective = mc.options.getCameraType();
+
+        Vec3 start = mc.gameRenderer.getMainCamera().getPosition();
+
+        position = start;
+        previousPosition = start;
 
         yaw = mc.player.getYRot();
         pitch = mc.player.getXRot();
 
-        lastUpdate = System.nanoTime();
+        if (oldPerspective == CameraType.THIRD_PERSON_FRONT) {
+            yaw += 180.0F;
+            pitch = -pitch;
+        }
+
+        previousYaw = yaw;
+        previousPitch = pitch;
+
+        mc.options.setCameraType(CameraType.FIRST_PERSON);
+
         active = true;
+        lastTickTime = System.nanoTime();
+
+        clearMovementKeys(mc);
     }
 
     public static void disable() {
+        if (!active) {
+            return;
+        }
+
         active = false;
-        lastUpdate = 0L;
+
+        Minecraft mc = Minecraft.getInstance();
+
+        if (oldPerspective != null) {
+            mc.options.setCameraType(oldPerspective);
+        }
+
+        oldPerspective = null;
+
+        clearMovementKeys(mc);
     }
 
     public static void tick() {
-
         if (!active) {
             return;
         }
@@ -84,97 +105,144 @@ public final class FreecamController {
             return;
         }
 
-        long now = System.nanoTime();
-
-        double delta = Math.min(
-            0.1D,
-            (now - lastUpdate) / 1_000_000_000.0D
-        );
-
-        lastUpdate = now;
-
         if (mc.screen != null) {
+            previousPosition = position;
+            previousYaw = yaw;
+            previousPitch = pitch;
+            lastTickTime = System.nanoTime();
+            clearMovementKeys(mc);
             return;
+        }
+
+        if (mc.options.getCameraType() != CameraType.FIRST_PERSON) {
+            mc.options.setCameraType(CameraType.FIRST_PERSON);
         }
 
         long window = mc.getWindow().handle();
 
-        double forward = 0.0D;
-        double strafe = 0.0D;
-        double vertical = 0.0D;
+        boolean forward = down(window, GLFW.GLFW_KEY_W);
+        boolean backward = down(window, GLFW.GLFW_KEY_S);
+        boolean left = down(window, GLFW.GLFW_KEY_A);
+        boolean right = down(window, GLFW.GLFW_KEY_D);
+        boolean up = down(window, GLFW.GLFW_KEY_SPACE);
+        boolean down = down(window, GLFW.GLFW_KEY_LEFT_SHIFT);
+        boolean sprint = down(window, GLFW.GLFW_KEY_LEFT_CONTROL);
 
-        if (pressed(window, GLFW.GLFW_KEY_W)) {
-            forward += 1.0D;
+        previousPosition = position;
+        previousYaw = yaw;
+        previousPitch = pitch;
+
+        double movementSpeed = speed * (sprint ? 1.0D : 0.5D);
+
+        Vec3 forwardVector = Vec3.directionFromRotation(0.0F, yaw);
+        Vec3 rightVector = Vec3.directionFromRotation(0.0F, yaw + 90.0F);
+
+        double x = 0.0D;
+        double y = 0.0D;
+        double z = 0.0D;
+
+        int forwardInput = (forward ? 1 : 0) - (backward ? 1 : 0);
+        int rightInput = (right ? 1 : 0) - (left ? 1 : 0);
+
+        if (forwardInput != 0) {
+            x += forwardVector.x * forwardInput;
+            z += forwardVector.z * forwardInput;
         }
 
-        if (pressed(window, GLFW.GLFW_KEY_S)) {
-            forward -= 1.0D;
+        if (rightInput != 0) {
+            x += rightVector.x * rightInput;
+            z += rightVector.z * rightInput;
         }
 
-        if (pressed(window, GLFW.GLFW_KEY_D)) {
-            strafe += 1.0D;
+        double horizontalLength = Math.sqrt(x * x + z * z);
+
+        if (horizontalLength > 1.0D) {
+            x /= horizontalLength;
+            z /= horizontalLength;
         }
 
-        if (pressed(window, GLFW.GLFW_KEY_A)) {
-            strafe -= 1.0D;
+        if (up) {
+            y += 1.0D;
         }
 
-        if (pressed(window, GLFW.GLFW_KEY_SPACE)) {
-            vertical += 1.0D;
+        if (down) {
+            y -= 1.0D;
         }
 
-        if (pressed(window, GLFW.GLFW_KEY_LEFT_SHIFT)) {
-            vertical -= 1.0D;
-        }
-
-        double radians = Math.toRadians(yaw);
-
-        double sin = Math.sin(radians);
-        double cos = Math.cos(radians);
-
-        double dx = -sin * forward + cos * strafe;
-        double dz = cos * forward + sin * strafe;
-
-        double length = Math.sqrt(
-            dx * dx + dz * dz + vertical * vertical
+        position = position.add(
+            x * movementSpeed,
+            y * movementSpeed,
+            z * movementSpeed
         );
 
-        if (length > 0.0D) {
+        lastTickTime = System.nanoTime();
 
-            double movement = speed * 20.0D * delta;
-
-            position = position.add(
-                dx / length * movement,
-                vertical / length * movement,
-                dz / length * movement
-            );
-        }
+        clearMovementKeys(mc);
     }
 
-    public static void rotate(
-        double mouseDeltaX,
-        double mouseDeltaY
-    ) {
+    private static boolean down(long window, int key) {
+        return GLFW.glfwGetKey(window, key) == GLFW.GLFW_PRESS;
+    }
 
+    public static void clearMovementKeys(Minecraft mc) {
+        if (mc == null) {
+            return;
+        }
+
+        mc.options.keyUp.setDown(false);
+        mc.options.keyDown.setDown(false);
+        mc.options.keyLeft.setDown(false);
+        mc.options.keyRight.setDown(false);
+        mc.options.keyJump.setDown(false);
+        mc.options.keyShift.setDown(false);
+        mc.options.keySprint.setDown(false);
+    }
+
+    public static void rotate(double deltaX, double deltaY) {
         if (!active) {
             return;
         }
 
-        yaw += (float) mouseDeltaX;
-        pitch += (float) mouseDeltaY;
+        previousYaw = yaw;
+        previousPitch = pitch;
 
-        pitch = Math.max(
-            -90.0F,
-            Math.min(90.0F, pitch)
+        yaw += (float) deltaX;
+        pitch += (float) deltaY;
+
+        pitch = Math.max(-90.0F, Math.min(90.0F, pitch));
+    }
+
+    public static void adjustSpeed(double scrollAmount) {
+        if (!active) {
+            return;
+        }
+
+        speed += scrollAmount * 0.15D * speed;
+        speed = Math.max(0.1D, Math.min(10.0D, speed));
+    }
+
+    private static float partialTick() {
+        double elapsed = (System.nanoTime() - lastTickTime) / 50_000_000.0D;
+        return (float) Math.max(0.0D, Math.min(1.0D, elapsed));
+    }
+
+    public static Vec3 getPosition() {
+        float delta = partialTick();
+
+        return new Vec3(
+            previousPosition.x + (position.x - previousPosition.x) * delta,
+            previousPosition.y + (position.y - previousPosition.y) * delta,
+            previousPosition.z + (position.z - previousPosition.z) * delta
         );
     }
 
-    private static boolean pressed(
-        long window,
-        int key
-    ) {
+    public static float getYaw() {
+        float delta = partialTick();
+        return previousYaw + (yaw - previousYaw) * delta;
+    }
 
-        return GLFW.glfwGetKey(window, key)
-            == GLFW.GLFW_PRESS;
+    public static float getPitch() {
+        float delta = partialTick();
+        return previousPitch + (pitch - previousPitch) * delta;
     }
 }
