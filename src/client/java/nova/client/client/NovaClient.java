@@ -1,3 +1,4 @@
+
 package nova.client.client;
 
 // @name: NovaClient
@@ -24,6 +25,7 @@ import nova.client.client.module.ModuleManager;
 
 import nova.client.client.render.EntityRadarRenderer;
 import nova.client.client.render.EspRenderer;
+import nova.client.client.render.CombatOverlayRenderer;
 import nova.client.client.render.MinimapRenderer;
 import nova.client.client.render.XrayChunkRefresh;
 
@@ -120,12 +122,14 @@ public final class NovaClient implements ClientModInitializer {
         );
 
         // Preserve existing ESP rendering.
+        // Add Hitboxes and Projectile ESP.
         WorldRenderEvents.END_EXTRACTION.register(
             context -> {
 
                 Minecraft mc = Minecraft.getInstance();
 
                 EspRenderer.render(mc);
+                CombatOverlayRenderer.render(mc);
             }
         );
 
